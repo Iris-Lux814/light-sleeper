@@ -3,9 +3,33 @@
   "version": "0.1.0",
   "private": true,
   "description": "Sleep, waking and dreaming for long-running AI companions.",
+  "license": "AGPL-3.0-only",
+  "author": "Iris-Lux814",
   "main": "src/sleep-engine.js",
+  "exports": {
+    ".": "./src/sleep-engine.js",
+    "./rules": "./src/sleep-rules.js",
+    "./clock": "./src/sleep-clock.js",
+    "./text-en": "./src/text-en.js",
+    "./text-zh": "./src/text-zh.js",
+    "./dream-prompt": "./src/dream-prompt.js"
+  },
+  "files": [
+    "src",
+    "examples",
+    "docs",
+    "DESIGN.md",
+    "README.zh-CN.md"
+  ],
+  "keywords": [
+    "ai-companion",
+    "agent",
+    "sleep",
+    "dreams",
+    "llm"
+  ],
   "scripts": {
-    "test": "node test/sleep-rules.test.js && node test/engine.test.js"
+    "test": "node test/sleep-rules.test.js && node test/engine.test.js && node test/text.test.js"
   },
   "engines": {
     "node": ">=18"

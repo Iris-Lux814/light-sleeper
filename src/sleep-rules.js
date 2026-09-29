@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // sleep-rules.js：睡与醒的规则。纯函数：不读写文件、不含任何人的数据，随机数可以传进来（测试用）。
 // 跟 sleep-clock.js 一起是引擎的计算部分；读写状态、往 agent 里递消息由适配层做。
 // 依据：docs/RESEARCH.md（被吵醒、再睡着、欠觉、说好几点醒）
@@ -61,7 +62,7 @@ const debtZ = (h) => Math.min(0.1, h * 0.012);
 function sleepScore({ h, wakes = 0, forgotWakes = 0, longestH = h, nightmares = 0, restless = 0, recovery = false }) {
   const s = 100 - (h < 8 ? (8 - h) * 16 : (h - 8) * 6) - (wakes + forgotWakes * 0.5) * 10 - (longestH < 3 && h >= 4 ? 15 : 0) - nightmares * 10 - restless * 12 - (recovery && h < 7 ? 10 : 0);
   const score = Math.max(0, Math.min(100, Math.round(s)));
-  return { score, quality: score >= 75 ? "好" : score >= 50 ? "还行" : "不好" };
+  return { score, grade: score >= 75 ? "good" : score >= 50 ? "ok" : "poor" };
 }
 
 // ── 排一晚 ──

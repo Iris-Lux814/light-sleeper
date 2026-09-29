@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // sleep-clock.js：作息同频的纯计算。不读写文件、不含任何人的数据。
 // 依据：docs/RESEARCH.md「作息同频」一节
 //   两过程模型（Borbély 2016）：困 = 睡眠压力 S − 生物钟 C

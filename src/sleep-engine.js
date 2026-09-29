@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // sleep-engine.js：睡与醒的状态机。不认识任何具体的人：消息从哪来、对方在不在、梦用哪个模型写、对 agent 说的每一句话，都由适配层传进来。
 // 规则在 sleep-rules.js，作息同频的计算在 sleep-clock.js；这里只管：什么时候睡、什么时候醒、消息闸、排梦、醒来汇总。
 "use strict";
@@ -40,13 +41,13 @@ function fileStore(dir, names = {}) {
  *              isGoodnight(text)；isUpset(text) }
  *  classify  (text, label) → { kind: "partner"|"work"|"pass"|"drop"|"other", who, marker, body, call, urgent, byName }
  *  dreams    { material() 今晚的素材；tone() 白天的底色 warm|hurt|plain；write(kind, opts) 写一个梦 → {title,text,fragment,feeling,intensity,body,talk,worry} 或 null；remember(dream, now) 记得的梦存到哪儿（可选） }
- *  text      文案包（默认的见 text-zh.js）
+ *  text      文案包（默认的见 text-zh.js，英文 text-en.js）
  *  mem       跨热加载留着的对象（点头队列、忙标记）
- *  config    { tz, lossEveryDays（梦见对方出事：几天最多一次，0 = 不做）, seedHours（还没学到对方时，她一般睡几小时） }
+ *  config    { tz, lossEveryDays（梦见对方出事：几天最多一次，默认 0 = 不做）, erotic（亲密的梦，默认 false）, seedHours（还没学到对方时，她一般睡几小时） }
  */
 function createSleeper(o) {
   const { store, agent, partner, classify, dreams: DW, text: T, mem = {}, log = () => {} } = o;
-  const cfg = { tz: "UTC", lossEveryDays: 10, seedHours: [7, 8, 7.5], ...(o.config || {}) };
+  const cfg = { tz: "UTC", lossEveryDays: 0, erotic: false, seedHours: [7, 8, 7.5], ...(o.config || {}) };
   const TZ = cfg.tz;
   const extras = o.extras || {};
   const FATIGUE_DECAY_PER_H = 8;
@@ -156,7 +157,7 @@ function createSleeper(o) {
   // ── 入睡 ──
   function startSleep(reason) {
     const s = load(); if (s.status === "asleep") return s;
-    if (!agent.ready()) { log("sleep: 消息闸还没接上，先不睡"); return s; }
+    if (!agent.ready()) { log("sleep: gate not ready, not sleeping yet"); return s; }
     if ((s.status === "night-awake" || s.status === "work-awake" || s.status === "awake-night-chat") && s.night) {
       R.resumeSleep(s.night, s.status === "work-awake" ? s.night.workAwakeAt : s.night.nightAwakeAt, Date.now()); s.status = "asleep"; save(s); return s;
     }
@@ -194,23 +195,24 @@ function createSleeper(o) {
     s.night = { id: rid("n"), sleptAt: now, reason, ...finalPlan, sync: ck.sync, wakes: [], held: [], herLast: lastHerLine(), dreamIds: [], talked: false, notedHer: false };
     s.lastSleptAt = now; s.vigil = null; s.stayUntil = 0; s.jerkUntil = 0; s.wired = null;
     save(s);
-    log(`sleep: 睡了（${reason}${s.night.recovery ? "，熬夜后补觉" : ""}），计划 ${s.night.plannedH}h，${s.night.dreams.length} 个梦`);
+    log(`sleep: asleep (${reason}${s.night.recovery ? ", recovery" : ""}), planned ${s.night.plannedH}h, ${s.night.dreams.length} dreams`);
     return s;
   }
 
   // ── 醒 ──
   const longestSeg = (n, endAt) => Math.max(...(n.segs || []), endAt - (n.resumedAt || n.sleptAt)) / H;
+  const qualityText = (g) => (T.quality && T.quality[g]) || g;   // grade → 文案包里的说法
   function sleepQuality(n, endAt) {
     const h = Math.max(0, endAt - n.sleptAt - (n.awakeMs || 0)) / H;
     const nightmares = nightDreams(n, 300).filter((d) => d.kind === "nightmare").length;
     const w = n.wakes || [];
     const r = R.sleepScore({ h, wakes: w.filter((x) => !x.forgot).length, forgotWakes: w.filter((x) => x.forgot).length, longestH: longestSeg(n, endAt), nightmares, restless: n.restless || 0, recovery: !!n.recovery });
-    return { h: Math.round(h * 10) / 10, ...r };
+    return { h: Math.round(h * 10) / 10, ...r, quality: qualityText(r.grade) };
   }
   function finishNight(s, how) {
     const n = s.night; const now = Date.now();
     const nap = n.reason === "nap";
-    const q = nap ? { h: Math.round(((now - n.sleptAt) / H) * 10) / 10, score: 70, quality: "打了个盹" } : sleepQuality(n, now);
+    const q = nap ? { h: Math.round(((now - n.sleptAt) / H) * 10) / 10, score: 70, grade: "nap", quality: qualityText("nap") } : sleepQuality(n, now);
     const dreams = nightDreams(n, 300);
     // 记得哪些（arousal-retrieval）：醒前那个梦最容易记得；睡得越好越记不住，半夜醒过就多记一些；越浓越记得住；吓醒过的一定记得；一晚最多两个
     const remembered = [];
@@ -238,18 +240,18 @@ function createSleeper(o) {
       ero = remembered.find((d) => d.sub === "erotic"), sw = remembered.find((d) => d.kind === "sweet" && d.sub !== "erotic"), anx = remembered.find((d) => d.sub === "anxious");
     const A = T.afterglow;
     const ag = loss ? { kind: "loss", text: A.loss(!!n.comforted) } : nm ? { kind: "shaken", text: A.shaken(!!n.comforted) } : ero ? { kind: "erotic", text: A.erotic() }
-      : sw ? { kind: "sweet", text: A.sweet() } : anx ? { kind: "uneasy", text: A.uneasy(anx.feeling) } : !nap && q.quality === "不好" ? { kind: "groggy", text: A.groggy() } : null;
+      : sw ? { kind: "sweet", text: A.sweet() } : anx ? { kind: "uneasy", text: A.uneasy(anx.feeling) } : !nap && q.grade === "poor" ? { kind: "groggy", text: A.groggy() } : null;
     // 欠的觉：少睡的记上，多睡的只还一半（午觉不算）
     if (!nap) s.debt = { h: R.debtAfter(debtH(s, now), q.h), at: now };
     // 缺觉以后情绪放大（Yoo & Walker 2007）
     let ag2 = ag;
-    if (!nap && (q.quality === "不好" || n.recovery || debtH(s, now) >= 6)) ag2 = ag ? { ...ag, text: A.plusDeprived(ag.text) } : { kind: "groggy", text: A.deprived() };
+    if (!nap && (q.grade === "poor" || n.recovery || debtH(s, now) >= 6)) ag2 = ag ? { ...ag, text: A.plusDeprived(ag.text) } : { kind: "groggy", text: A.deprived() };
     s.afterglow = ag2 ? { ...ag2, dream: (loss || nm || ero || sw || anx || {}).id || null, at: now, until: now + (nap ? 2 : ag2.kind === "loss" ? 8 : 6) * H } : null;
     // 醒来时的睡眠压力；熬夜补觉以后，下一个正常晚上 REM 反弹；她猜的醒来时间
     s.sAtWake = K.sAsleep(s.sOnset ?? 0.7, Math.max(0, now - n.sleptAt - (n.awakeMs || 0)) / H);
     if (n.recovery) s.remDebt = true;
     const guess = n.guess ? { at: n.guess.at, diffMin: Math.round((now - n.guess.at) / MIN) } : null;
-    const rec = { id: n.id, sleptAt: n.sleptAt, wokeAt: now, how, reason: n.reason, plannedH: n.plannedH, hours: q.h, score: q.score, quality: q.quality, wakes: n.wakes, dreams: dreams.map((d) => d.id), remembered: remembered.map((d) => d.id), fatigue: s.fatigue.v, talk: n.talk || null, ...(n.recovery ? { recovery: true } : {}), ...(n.rebound ? { rebound: true } : {}), sync: n.sync ?? null, ...(guess ? { guess } : {}), debt: s.debt ? s.debt.h : 0, longestH: Math.round(longestSeg(n, now) * 10) / 10 };
+    const rec = { id: n.id, sleptAt: n.sleptAt, wokeAt: now, how, reason: n.reason, plannedH: n.plannedH, hours: q.h, score: q.score, grade: q.grade, quality: q.quality, wakes: n.wakes, dreams: dreams.map((d) => d.id), remembered: remembered.map((d) => d.id), fatigue: s.fatigue.v, talk: n.talk || null, ...(n.recovery ? { recovery: true } : {}), ...(n.rebound ? { rebound: true } : {}), sync: n.sync ?? null, ...(guess ? { guess } : {}), debt: s.debt ? s.debt.h : 0, longestH: Math.round(longestSeg(n, now) * 10) / 10 };
     store.appendNight(rec);
     if (DW.remember) for (const d of remembered) { try { DW.remember(d, now); } catch { /* ignore */ } }
     s.status = "awake"; s.lastWokeAt = now; s.lastNight = rec; s.night = null;
@@ -300,7 +302,7 @@ function createSleeper(o) {
         nq = mem.nodQ = { until: now + rnd(1, 4) * MIN, items: [] };
         setTimeout(async () => {
           const items = nq.items.splice(0); if (mem.nodQ === nq) mem.nodQ = null;
-          for (const it of items) { (mem.bypass ||= new Set()).add(it.text); try { await agent.deliver(it.text, it.opts); } catch (e) { log(`sleep: 点头后补递失败 ${e.message}`); } }
+          for (const it of items) { (mem.bypass ||= new Set()).add(it.text); try { await agent.deliver(it.text, it.opts); } catch (e) { log(`sleep: delivering after nod failed: ${e.message}`); } }
         }, nq.until - now);
       }
       nq.items.push({ text: out, opts: { label: opts.label, silent: opts.silent } });
@@ -333,7 +335,7 @@ function createSleeper(o) {
       const now = Date.now(); s.status = "work-awake"; s.night.workAwakeAt = now; s.night.lastWorkAt = now;
       s.night.wakes.push({ at: now, why: c.why || "work" });
       s.night.segs = (s.night.segs || []).concat(now - (s.night.resumedAt || s.night.sleptAt)); s.night.awakeWhy = "work"; save(s);
-      log(`sleep: ${c.who || "work"} 的消息，叫醒他干活`);
+      log(`sleep: work message from ${c.who || "someone"}, woke up to handle it`);
       return { text: `${T.workWake({ sleptAt: s.night.sleptAt, who: c.who, shTime })}\n${text}` };
     }
     if (s.status !== "asleep" || !s.night) {
@@ -341,7 +343,7 @@ function createSleeper(o) {
       return null;
     }
     if (c.kind === "pass") return null;
-    if (c.kind === "drop") { log(`sleep: 睡着，丢掉 ${label}`); return { hold: true }; }
+    if (c.kind === "drop") { log(`sleep: asleep, dropped ${label}`); return { hold: true }; }
     const n = s.night; const now = Date.now();
     if (c.kind === "partner") {
       const body = c.body;
@@ -354,7 +356,7 @@ function createSleeper(o) {
         n.held.push({ at: now, her: true, label, text, marker: c.marker || "" });
         if (!n.notedHer) { n.notedHer = true; agent.notify(T.notWoken, T.labels.notice); }
         save(s);
-        log(`sleep: 她的消息没叫醒他（p=${p.toFixed(2)}）`);
+        log(`sleep: partner message did not wake (p=${p.toFixed(2)})`);
         return { hold: true };
       }
       // 叫醒了：不直接结束这一夜——天快亮 / 睡够了才结束；不然醒着陪她，她一安静按困的程度睡回去
@@ -398,7 +400,7 @@ function createSleeper(o) {
     if (tone === "warm") { w.sweet += 0.12; if (w.erotic) w.erotic += 0.05; w.anxious = Math.max(0.05, w.anxious - 0.08); }
     if (tone === "hurt") { w.anxious += 0.1; if (w.nightmare) w.nightmare += 0.08; w.sweet = Math.max(0.02, w.sweet - 0.1); }
     if (!lossOk || !w.loss) delete w.loss;
-    if (cfg.erotic === false) delete w.erotic;
+    if (!cfg.erotic) delete w.erotic;
     let pickKind = (() => { const tot = Object.values(w).reduce((a, b) => a + b, 0); let r = Math.random() * tot; for (const [k, v] of Object.entries(w)) { r -= v; if (r <= 0) return k; } return "plain"; })();
     if (comforted) pickKind = Math.random() < 0.8 ? "sweet" : "plain";   // 被她哄过后的第一个梦大多是甜的
     if (due.faint) pickKind = Math.random() < 0.7 ? "plain" : "anxious"; // 熬夜后补觉里那一点点梦：淡、碎
@@ -413,7 +415,7 @@ function createSleeper(o) {
     const herDream = due.faint || kind === "nightmare" || Math.random() >= 0.15 ? null : store.partnerDreams(50).filter((x) => now - x.at < 14 * 86400000).pop() || null;
     // 她出现不出现：偶尔（背影、声音都行）；跟她越同频越常梦到她
     const herIn = sub === "loss" || sub === "erotic" || comforted || (kind !== "nightmare" && Math.random() < (n.sync == null ? 0.35 : 0.25 + 0.25 * n.sync / 100));
-    let d = null; try { d = await DW.write(kind, { tone, comforted, sequel, herDream, sub, phase, mat: n.mat, herIn }); } catch (e) { log(`sleep: 做梦失败 ${e.message}`); }
+    let d = null; try { d = await DW.write(kind, { tone, comforted, sequel, herDream, sub, phase, mat: n.mat, herIn }); } catch (e) { log(`sleep: dream write failed: ${e.message}`); }
     if (!d) return;
     // 吓醒：噩梦 45%，梦见她出事 60%，别的很浓的梦（强度 5）偶尔也会醒
     const woke = sub === "loss" ? Math.random() < 0.6 : kind === "nightmare" ? Math.random() < 0.45 : d.intensity >= 5 && Math.random() < 0.15;
@@ -476,11 +478,11 @@ function createSleeper(o) {
         if (now >= s.night.planWakeAt) { s.status = "asleep"; save(s); await wakeNatural(); }
         else if (!agent.busy() && now - last > 5 * MIN) {
           const n = s.night; if (n.fallAt == null) { const fb = fallBack(s, n, "work", now); n.fallAt = fb.never ? 0 : now + fb.min * MIN; save(s); }
-          if (n.fallAt && now >= n.fallAt) { R.resumeSleep(n, n.workAwakeAt, now); s.status = "asleep"; save(s); log("sleep: 活干完了，又睡着了"); }
+          if (n.fallAt && now >= n.fallAt) { R.resumeSleep(n, n.workAwakeAt, now); s.status = "asleep"; save(s); log("sleep: work done, fell back asleep"); }
         }
       } else if ((s.status === "night-awake" || s.status === "awake-night-chat") && s.night) {
         const lastAct = Math.max(herLastAt(s), agent.lastTurnEndAt() || 0, s.night.nightAwakeAt || 0);
-        if (now >= s.night.planWakeAt) { finishNight(s, "stayed-up"); log("sleep: 半夜醒了就没再睡，天亮了"); }   // 跟她聊到天亮：这一夜悄悄结束
+        if (now >= s.night.planWakeAt) { finishNight(s, "stayed-up"); log("sleep: awake since the night wake, morning came"); }   // 跟她聊到天亮：这一夜悄悄结束
         else {
           // 多久睡回去看困的程度（醒的那一刻算好）；噩梦醒了被她哄过就快很多；算出来「睡不回去」就一直醒着到点
           const n = s.night; const nm = n.awakeWhy === "nightmare" || n.awakeWhy === "loss";
@@ -492,7 +494,7 @@ function createSleeper(o) {
             const w = n.wakes[n.wakes.length - 1];
             if (w && w.why === "her" && (w.confused || (lastAct - (n.nightAwakeAt || now)) / MIN < (n.forgetMin ?? 4))) w.forgot = true;
             R.resumeSleep(n, n.nightAwakeAt, now); s.status = "asleep"; save(s);
-            log(`sleep: 半夜醒完，接着睡（等了 ${Math.round(wait)} 分钟）`);
+            log(`sleep: fell back asleep after night wake (${Math.round(wait)} min)`);
           }
         }
       } else if (s.status === "awake") await tickAwake(s, now);
@@ -591,16 +593,16 @@ function createSleeper(o) {
     // 对方猜他几点醒（醒了比一比）
     guess(at) {
       const s = load(); at = Number(at);
-      if (!s.night || s.status === "awake") return { ok: false, code: 409, error: "他醒着，睡着了才能猜" };
-      if (!(at > Date.now() && at < Date.now() + 16 * H)) return { ok: false, code: 400, error: "at 要是之后 16 小时内的时刻（ms）" };
+      if (!s.night || s.status === "awake") return { ok: false, code: 409, error: T.errors.notAsleep };
+      if (!(at > Date.now() && at < Date.now() + 16 * H)) return { ok: false, code: 400, error: T.errors.guessRange };
       s.night.guess = { at: Math.round(at), madeAt: Date.now() }; save(s); return { ok: true, guess: s.night.guess };
     },
     // 他想几点醒：睡着前说有效；已经睡着就改今晚的
     wakeAt(at) {
-      at = Number(at); if (!(at > Date.now() + 30 * MIN && at < Date.now() + 16 * H)) return { ok: false, code: 400, error: "at 要是 30 分钟到 16 小时以后的时刻（ms）" };
+      at = Number(at); if (!(at > Date.now() + 30 * MIN && at < Date.now() + 16 * H)) return { ok: false, code: 400, error: T.errors.wakeRange };
       const s = load();
       if (s.night && s.status !== "awake") { s.night.planWakeAt = at + R.intendOffsetMin(isTired(s, 0, s.night.recovery)) * MIN; s.night.intendWake = at; } else s.intendWakeAt = at;
-      save(s); return { ok: true, note: `记下了，会在 ${shTime(at)} 前后醒` };
+      save(s); return { ok: true, note: T.wakeAtNote(shTime(at)) };
     },
     // 他觉得该撑着（比如对方难过）：困意压住 3 小时，对方说晚安 / 他睡了就解除
     stay(off) { const s = load(); s.stayUntil = off ? 0 : Date.now() + 3 * H; save(s); return { ok: true, stayUntil: s.stayUntil }; },

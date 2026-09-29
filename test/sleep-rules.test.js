@@ -20,7 +20,7 @@ assert(R.fallBack({ Z: 0.6, sleptH: 1, toWakeMin: 400, why: "her" }, () => 0).mi
 for (let i = 0; i < 500; i++) { const a = R.intendOffsetMin(false), b = R.intendOffsetMin(true); assert(a >= -25 && a <= 10 && b >= 10 && b <= 60); }
 assert.equal(R.debtAfter(0, 6), 2); assert.equal(R.debtAfter(4, 10), 3); assert.equal(R.debtAfter(1, 12), 0);
 assert(Math.abs(R.debtNow({ h: 10, at: 0 }, 14 * 86400000) - 10 / Math.E) < 1e-9);
-assert.deepEqual(R.sleepScore({ h: 8 }), { score: 100, quality: "好" });
+assert.deepEqual(R.sleepScore({ h: 8 }), { score: 100, grade: "good" });
 assert.equal(R.sleepScore({ h: 6, wakes: 1, forgotWakes: 2 }).score, 100 - 32 - 20);
 const pn = R.planNight(0, 0, {}); assert(pn.plannedH >= 4 && pn.plannedH <= 11 && pn.dreams.every((d, i, a) => !i || d.at > a[i - 1].at));
 assert(R.planRecovery(0, { day: true, awakeH: 22 }).restless >= 1 && R.planRecovery(0, { day: false, awakeH: 22 }).restless === 0);

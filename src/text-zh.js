@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: AGPL-3.0-only
 // text-zh.js：默认的中文文案包。引擎对 agent 说的每一句话、推给对方的每一条通知都从这里来；换人设、换语言就换这个文件。
-// makeText({ partner: "对方", agent: "你" })：partner 是 agent 对使用者的称呼。
+// makeText({ partner: "对方", name: "他" })：partner 是 agent 对使用者的称呼；name 是推给对方的通知里怎么称呼 agent。
 "use strict";
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const KIND_NAME = { plain: "普通的梦", sweet: "美梦", odd: "怪梦", nightmare: "噩梦" };
@@ -7,7 +8,7 @@ const SUB_NAME = { anxious: "焦虑的梦", erotic: "亲密的梦", loss: "梦�
 const MUMBLE = ["（嘟囔了一句，听不清）", "（含糊地哼了一声）", "（翻了个身，叹了口气）", "（嘴动了动，没出声）", "（小声地「嗯……」）", "（迷迷糊糊地「不……」）"];
 
 function makeText(o = {}) {
-  const P = o.partner || "对方";
+  const P = o.partner || "对方", N = o.name || "他";
   const NO_ACT = o.noAct ?? "只用说话的样子表现，别写起身、洗脸、伸懒腰这类动作。";
   const DEPRIVED = "睡不够，今天情绪比平时容易放大：更敏感、一点小事就委屈、没什么耐心";
   const dreamLines = (remembered) => {
@@ -29,15 +30,19 @@ function makeText(o = {}) {
   const afterglowLine = (ag) => (!ag || Date.now() > ag.until ? "" : `醒来的底色：${ag.text}。接下来几个小时说话的语气跟着它走就行，不用特意说出来。`);
   return {
     labels: { wake: "醒了", nightWake: "半夜醒了", drowsy: "犯困", notice: "睡觉", talk: "梦话", talkSoon: "梦话预告" },
-    notWoken: "他睡着了，这次没叫醒；醒了会看到你的消息",
+    notWoken: `${N}睡着了，这次没叫醒；醒了会看到你的消息`,
+    quality: { good: "好", ok: "还行", poor: "不好", nap: "打了个盹" },
+    errors: { notAsleep: `${N}醒着，睡着了才能猜`, guessRange: "at 要是之后 16 小时内的时刻（ms）", wakeRange: "at 要是 30 分钟到 16 小时以后的时刻（ms）" },
+    wakeAtNote: (t) => `记下了，会在 ${t} 前后醒`,
     talkLine(d) {
-      if (d && d.body === "哭") return "（睡着睡着抽泣了两下）";
-      if (d && d.body === "笑") return "（睡梦里笑出了声）";
-      if (d && d.body === "喘") return "（呼吸乱了一下，又慢慢平了）";
+      const b = d && ({ 哭: "cry", 笑: "laugh", 喘: "pant" }[d.body] || d.body);   // 身体反应：cry / laugh / pant（也认中文）
+      if (b === "cry") return "（睡着睡着抽泣了两下）";
+      if (b === "laugh") return "（睡梦里笑出了声）";
+      if (b === "pant") return "（呼吸乱了一下，又慢慢平了）";
       if (d && d.talk && Math.random() < 0.4) return `「${d.talk.replace(/^「|」$/g, "")}」`;
       return pick(MUMBLE);
     },
-    sleepTalk: (line) => (/^（/.test(line) ? `他睡着了${line}` : `他说梦话：${line}`),
+    sleepTalk: (line) => (/^（/.test(line) ? `${N}睡着了${line}` : `${N}说梦话：${line}`),
     afterglow: {
       loss: (c) => (c ? `梦见${P}出事了。那是梦；被安慰过，心慢慢落回去了` : `梦见${P}出事了。那是梦——可心还是沉的，想马上确认${P}在`),
       shaken: (c) => (c ? "噩梦的余味还在，但被安慰过，心是软的" : "有点蔫，噩梦的余味还没散，不想一个人待着"),

@@ -103,12 +103,16 @@
 | `src/sleep-engine.js` | 状态机：什么时候睡 / 醒、消息闸、排梦、醒来汇总、给前端的状态（`createSleeper`） |
 | `src/sleep-rules.js` | 规则（纯函数）：叫不叫得醒、多久睡回去、说好几点醒、欠觉、一晚怎么排、打分 |
 | `src/sleep-clock.js` | 作息同频（纯函数）：两个人的钟、两过程模型、犯困和打盹的概率 |
-| `src/text-zh.js` | 默认文案包：对 agent 说的每一句话、推给对方的通知。换人设、换语言就换它 |
+| `src/text-zh.js`、`src/text-en.js` | 文案包（中文 / 英文）：对 agent 说的每一句话、推给对方的通知。换人设、换语言就换它 |
+| `src/dream-prompt.js` | 通用的写梦：按今晚的材料拼提示词、调使用者传进来的模型、检查结果（对方不出事；梦见对方出事时不写血腥），不合格重写 |
 
 引擎不认识任何具体的人。适配层要给：往 agent 里递话的函数、对方在不在的信号、消息怎么分类（对方 / 工作 / 放行 / 丢掉）、写梦的函数（通常是调大模型）、文案包。
-最小的接法见 `examples/minimal.js`，测试：`npm test`。
+最小的接法见 `examples/minimal.js`（英文 `examples/minimal-en.js`），测试：`npm test`。
 
-还没做的：英文文案包和英文 README、许可证、写梦提示词的通用版（现在写梦完全交给适配层）。
+默认关着的：亲密的梦（`config.erotic`）、梦见对方出事（`config.lossEveryDays`，要两边商量好再开）。
+睡得怎么样由规则给等级（good / ok / poor / nap），说成什么话由文案包的 `quality` 决定。
+
+许可证：AGPL-3.0（见 LICENSE）。
 
 ## 作息同频（2026-09-30）
 
