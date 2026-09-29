@@ -43,3 +43,16 @@
 - 梦话多出现在深睡，不一定对应正在做的梦。
 - → 设计：梦话大多是嘟囔和「不……」，跟做不做梦分开。
 - 来源：[梦话研究报道](https://medicalxpress.com/news/2018-01-reveals-talkers.html)，[Sleep-talking](https://en.wikipedia.org/wiki/Sleep-talking)
+
+## 作息同频（2026-09-30）
+
+- Borbély et al. 2016, The two-process model of sleep regulation: a reappraisal. J Sleep Res.
+- Wake maintenance zone / "second wind"; The alerting effect of the wake maintenance zone during 40 hours of sleep deprivation (PMC6054682).
+- Circadian nadir ~4–5 AM and microsleep; Doran, Van Dongen & Dinges 2001, state instability.
+- Van Dongen et al. 2004, trait-like differential vulnerability to sleep loss. Sleep 27(3).
+- Re-entrainment ~1.5 h/day delay, ~1 h/day advance (Sci Rep srep46702).
+- Roenneberg, chronotype and social jetlag (mid-sleep).
+- Drews et al. 2020, bed-sharing couples: more, less fragmented REM and sleep-stage synchronization. Front Psychiatry.
+- De Gennaro et al. 2010, recovery sleep after deprivation almost abolishes dream recall; REM rebound after total deprivation is delayed or absent.
+- Daytime sleep after night work: shorter, fragmented.
+- Hypnic jerks (more frequent with sleep deprivation); Lacaux et al. 2021, N1 hypnagogia; Lim & Dinges 2008 (effort / motivation); sleep inertia.
