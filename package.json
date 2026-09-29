@@ -1,0 +1,13 @@
+{
+  "name": "light-sleeper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sleep, waking and dreaming for long-running AI companions.",
+  "main": "src/sleep-engine.js",
+  "scripts": {
+    "test": "node test/sleep-rules.test.js && node test/engine.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

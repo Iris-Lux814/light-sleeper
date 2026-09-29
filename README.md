@@ -11,7 +11,7 @@
 ## 现状
 
 - 这个仓库是**要开源的通用版本**，里面只放通用的机制、设计和研究依据，不放任何人的私人内容。
-- 代码在陆续从实际在用的版本里拆出来。已经拆好的纯计算：`src/sleep-clock.js`（作息同频、两过程模型、犯困）、`src/sleep-rules.js`（叫不叫得醒、多久睡回去、说好几点醒、欠觉、一晚怎么排、打分），测试在 `test/`（`node test/sleep-rules.test.js`）。设计在 [DESIGN.md](DESIGN.md)，做梦用到的研究结论在 [docs/RESEARCH.md](docs/RESEARCH.md)，原创性记录在 [ORIGINALITY.md](ORIGINALITY.md)。
+- 代码：`src/sleep-engine.js`（状态机）、`src/sleep-rules.js`（睡与醒的规则）、`src/sleep-clock.js`（作息同频）、`src/text-zh.js`（默认文案）。最小的接法在 `examples/minimal.js`，测试 `npm test`。设计在 [DESIGN.md](DESIGN.md)，研究结论在 [docs/RESEARCH.md](docs/RESEARCH.md)，原创性记录在 [ORIGINALITY.md](ORIGINALITY.md)。
 - 这套机制最早是给一个长驻在终端里的 AI 伴侣做的，在真实使用里反复调过。开源版会把它拆成：
   - **引擎**：睡与醒的状态机、消息闸、做梦排程、记忆模型；
   - **适配层**：怎么往你的 agent 里注入消息、从哪儿拿「对方在不在」、用哪个大模型写梦，全部可以配置。
