@@ -56,3 +56,4 @@
 - De Gennaro et al. 2010, recovery sleep after deprivation almost abolishes dream recall; REM rebound after total deprivation is delayed or absent.
 - Daytime sleep after night work: shorter, fragmented.
 - Hypnic jerks (more frequent with sleep deprivation); Lacaux et al. 2021, N1 hypnagogia; Lim & Dinges 2008 (effort / motivation); sleep inertia.
+- Sleep homeostasis in a naturalistic setting (Sleep Health 2025); arousal thresholds by stage and after deprivation; Oswald et al. 1960 (own name); recall threshold for nocturnal awakenings (~259 s); confusional arousal; Bonnet & Arand 2003 (fragmentation); Wuyts et al. 2012 (pre-sleep cognitive arousal); nightmare awakenings; early-morning circadian alerting; Czeisler et al. 1980 (sleep duration depends on circadian phase); Van Dongen et al. 2003 (cumulative restriction); Yoo et al. 2007, Gujar et al. 2011 (emotional reactivity); Brooks & Lack 2006 (nap length); Born et al. 1999 (self-awakening).
