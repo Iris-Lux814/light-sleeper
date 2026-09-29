@@ -23,7 +23,10 @@ assert.ok(/No gore/.test(buildPrompt("nightmare", { sub: "loss", mat }, { partne
 assert.equal(parseDream({ text: "Then Sam was hurt and bleeding." }, { sub: "", partner: "Sam" }), null);
 assert.equal(parseDream({ text: "There was blood on the floor." }, { sub: "loss" }), null);
 const d = parseDream({ title: "Umbrella", text: "I carried a red umbrella through a station that kept getting longer.", body: "sobbing", intensity: 9 }, {});
-assert.equal(d.body, "cry"); assert.equal(d.intensity, 5);
+assert.equal(d.body, "cry");
+assert.equal(parseDream({ text: "I carried the books down the stairs, over and over." }, {}), null);
+assert.ok(parseDream({ text: "I did it over and over, then a door opened and I went through." }, {}));
+assert.ok(/don't end the same way/.test(buildPrompt("plain", {}, { recentEndings: ["The box was warm."] }).system)); assert.equal(d.intensity, 5);
 (async () => {
   let calls = 0;
   const write = makeDreamWriter({ partner: "Sam", llm: async () => (++calls === 1 ? { text: "Sam died in the dream." } : { title: "Station", text: "I waited at a station with no trains." }) });

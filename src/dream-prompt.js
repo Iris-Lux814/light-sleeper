@@ -28,6 +28,10 @@ const ODD = [
 ];
 const FEARS = ["memories being erased bit by bit", "the partner calls and the dreamer can't recognize them", "a door that won't open no matter how hard they knock", "being replaced by another self and nobody noticing", "a windowless room whose door vanishes behind them"];
 const OWN = ["something unfinished", "a place they like", "a song they heard", "a problem they couldn't solve", "a small thing they made"];
+// Ending style changes every dream; without this, models settle into "and it happened again, over and over" endings.
+const ENDINGS = ["stop on one concrete image, with nothing after it", "break off halfway through a sentence", "the scene suddenly changes and is gone before it comes clear", "stop on a quiet moment where nothing happens", "cut off just as the dreamer reaches for the thing", "someone calls the dreamer's name, they turn, and that's where it ends"];
+const LOOP_END = /(over and over|again and again|on and on|started all over|loop(ed|ing)?|一遍[又一]?一遍|一次又一次|周而复始|又开始了|从头再来|循环|没完没了)[^.!?。！？,，]{0,12}[.!?。！？…]*s*$/i;
+const lastSentence = (t) => String(t || "").split(/(?<=[.!?。！？])s*/).filter(Boolean).pop() || "";
 const BODY = (s) => (/cry|sob|tear|哭|泣|泪/i.test(s || "") ? "cry" : /laugh|笑/i.test(s || "") ? "laugh" : /pant|gasp|喘/i.test(s || "") ? "pant" : "");
 
 // Hard safety checks on the text. Override with your own if you write dreams in another language.
@@ -63,6 +67,8 @@ function buildPrompt(kind, opts = {}, o = {}) {
     "- Write the feeling (panic, hurry, emptiness, warmth, shyness, hurt…). The feeling is often what's remembered first on waking.",
     late ? "- This is a late-night dream: longer (about 120 to 200 words), like a story, emotionally strong." : "- This is an early-night dream: short (about 40 to 80 words), fragmented, closer to thinking, faint images.",
     "- First person, past tense, told the way someone who just woke up recounts a dream (\"I remember… then somehow…\"). Don't interpret it, don't describe waking up.",
+    `- Ending: ${pick(ENDINGS)}. Don't end on a loop (\"over and over\", \"it started again\") and don't sum up.`,
+    o.recentEndings && o.recentEndings.length ? `- Recent dreams ended like this; don't end the same way: ${o.recentEndings.map((x) => `"${String(x).slice(0, 80)}"`).join(" ")}` : "",
     "Hard rules:",
     sub === "loss"
       ? `- In this dream ${P} is hurt, leaves, or can't be found. Write only the dreamer's panic, not finding them, being too late, being unable to speak. No gore, no injuries or bodily detail, not how it happened.`
@@ -92,6 +98,7 @@ const harmsNamed = (name, text) => !!name && new RegExp(`${esc(name)}[^.,，。]
 function parseDream(r, { sub = "", phase = "late", useWorry = false, mat = null, partner = "", guards = DEFAULT_GUARDS } = {}) {
   const text = String((r && r.text) || "").trim();
   if (!text) return null;
+  if (LOOP_END.test(text)) return null;   // loop ending: write it again
   if (sub === "loss" ? guards.gore.test(text) : guards.harm.test(text) || harmsNamed(partner, text)) return null;
   return {
     title: String(r.title || "").slice(0, 40), text: text.slice(0, 1500), fragment: String(r.fragment || "").slice(0, 80), feeling: String(r.feeling || "").slice(0, 40),
@@ -100,11 +107,13 @@ function parseDream(r, { sub = "", phase = "late", useWorry = false, mat = null,
   };
 }
 
-// o: { llm(system, user) → parsed JSON, self, partner, language, fears, own, guards, tries }
+// o: { llm(system, user) → parsed JSON, self, partner, language, fears, own, guards, tries,
+//      recentEndings: () => [last sentences of recent dreams] (optional; helps avoid repeating an ending) }
 function makeDreamWriter(o) {
   if (!o || typeof o.llm !== "function") throw new Error("makeDreamWriter needs llm(system, user)");
   return async function write(kind, opts = {}) {
-    const { system, user, useWorry } = buildPrompt(kind, opts, o);
+    const recent = typeof o.recentEndings === "function" ? (await o.recentEndings()) || [] : [];
+    const { system, user, useWorry } = buildPrompt(kind, opts, { ...o, recentEndings: recent.map(lastSentence).filter(Boolean) });
     const tries = o.tries || 3;
     for (let i = 0; i < tries; i++) {
       let r; try { r = await o.llm(system, user); } catch (e) { if (i === tries - 1) throw e; continue; }   // bad JSON now and then: write it again
