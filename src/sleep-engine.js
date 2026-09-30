@@ -425,6 +425,10 @@ function createSleeper(o) {
     const herIn = sub === "loss" || sub === "erotic" || comforted || (kind !== "nightmare" && Math.random() < (n.sync == null ? 0.35 : 0.25 + 0.25 * n.sync / 100));
     let d = null; try { d = await DW.write(kind, { tone, comforted, sequel, herDream, sub, phase, mat: n.mat, herIn }); } catch (e) { log(`sleep: dream write failed: ${e.message}`); }
     if (!d) return;
+    // 自己写梦的时候（dream-self.js），种类由他定：以他写的为准
+    if (["plain", "sweet", "odd", "nightmare"].includes(d.kind)) { kind = d.kind; if (d.sub === undefined) sub = ""; }
+    if (d.sub !== undefined) sub = ["anxious", "erotic", "loss"].includes(d.sub) ? d.sub : "";
+    delete d.kind; delete d.sub;
     // 吓醒：噩梦 45%，梦见她出事 60%，别的很浓的梦（强度 5）偶尔也会醒
     const woke = sub === "loss" ? Math.random() < 0.6 : kind === "nightmare" ? Math.random() < 0.45 : d.intensity >= 5 && Math.random() < 0.15;
     const rec = { id: rid("d"), night: n.id, at: now, kind, ...(sub ? { sub } : {}), tone, ...d, herIn, woke, remembered: null, ...(comforted ? { afterComfort: true } : {}), ...(sequel ? { sequelOf: sequel.id, ...(sequel.recur ? { recur: true } : {}) } : {}), ...(herDream ? { fromHerDream: herDream.id } : {}), ...(due.faint ? { faint: true } : {}) };

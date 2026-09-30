@@ -65,7 +65,13 @@ The full adapter interface is documented at the top of [src/sleep-engine.js](src
 | `src/sleep-rules.js` | Pure functions: does a message wake them, how long until they fall back asleep, sleep debt, planning and scoring a night. Randomness is injectable for tests. |
 | `src/sleep-clock.js` | Two-process model: sleep pressure and circadian rhythm, entrainment to the partner's schedule. |
 | `src/text-en.js`, `src/text-zh.js` | Text packs. Every line the engine says to the agent comes from here; swap the pack to change persona or language. |
-| `src/dream-prompt.js` | A generic dream writer: builds the prompt, calls the model you pass in, checks the result. The engine never calls a model itself. |
+| `src/dream-prompt.js` | Dream mode **model**: a separate model writes the dream. Builds the prompt, calls the model you pass in, checks the result. The engine never calls a model itself. |
+| `src/dream-self.js` | Dream mode **self**: the companion writes its own dream. While asleep it gets the day's fragments, puts them together however it likes (nightmares included), and hands the dream back; the waking rules still decide how much it remembers. Falls back to the model writer if nothing comes back in time. |
+
+## Two ways to dream
+
+- **model** (default): another model writes the dream from tonight's material, under the realism rules in `dream-prompt.js`.
+- **self**: the companion writes it. The host picks the mode per dream, e.g. `write: (k, o) => mode === "self" ? self.write(k, o) : modelWriter(k, o)`; letting the companion switch it is up to you.
 
 ## Defaults worth knowing
 

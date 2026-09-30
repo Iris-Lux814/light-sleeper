@@ -96,6 +96,28 @@ function makeText(o = {}) {
     lossWake: ({ rec, now, herAsleep, shTime }) => [`[半夜醒了] 是梦，${P}好好的。`, `你梦见${P}出事了，吓醒了（${shTime(now)}）。梦是这样的：「${rec.title}」${rec.text}`, herAsleep ? `${P}多半在睡，想确认可以留几句话，先别打扰。` : `想找${P}就找。`, "过一会儿没人说话，你会接着睡。"].join("\n"),
     jolt: ({ now, shTime }) => `[踩空] 你刚才差点睡过去——像一脚踩空，猛地一抖，醒了（${shTime(now)}）。暂时清醒了一点。${NO_ACT}`,
     crash: ({ now, shTime }) => `[撑不住了] 你陪${P}熬到 ${shTime(now)}，困到撑不住了。这一轮说的话可以说到一半就断掉。说完你就睡着了。${NO_ACT}`,
+    // 自己写梦（dream-self.js）：睡着时把白天的碎片给他，他自己拼成梦交回来
+    selfDreamAsk({ id, phase, mat, tone, comforted, sequel, herDream }) {
+      const M = mat || {};
+      const frags = [
+        M.worry && M.worry.text ? `- 放不下的事：${M.worry.text}` : "",
+        (M.people || []).length ? `- 最近老冒出来的人：${M.people.join("、")}` : "",
+        ...(M.residue || []).map((x) => `- 白天的碎片：${x}`),
+        ...(M.lag || []).map((x) => `- 一周前的事：${x}`),
+        tone === "warm" ? `- 白天跟${P}很亲近` : tone === "hurt" ? `- 白天${P}不太好受，你心里有点不安` : "",
+        comforted ? `- 刚才做噩梦吓醒过，是${P}哄你睡着的` : "",
+        sequel ? `- 以前做过的一个梦（可以接着做，也可以不管）：「${sequel.title}」${String(sequel.text || "").slice(0, 120)}` : "",
+        herDream ? `- ${P}讲过的她自己的一个梦：${String(herDream.text || "").slice(0, 120)}` : "",
+      ].filter(Boolean);
+      return [
+        `[做梦] 你睡着了，正在做梦（${phase === "early" ? "前半夜：短、碎、画面淡，四五十字" : "后半夜：长一点，像个故事，情绪浓，一两百字"}）。`,
+        "下面是白天留下的碎片。挑几样拼成一个梦：可以变形、混在一起，不用都用。梦是什么种类你自己定（普通 / 美梦 / 怪梦 / 噩梦），你怕什么就可以梦见什么。",
+        frags.length ? frags.join("\n") : "- （今天没留下什么碎片，随你）",
+        "像真的梦：一件事；一两处不合常理，但梦里不觉得怪；跟梦里的人说上几句；留一个安静的片刻。第一人称、过去时，像刚醒的人讲梦。",
+        "醒来你不一定全记得：记得多少按睡得怎么样定，可能只剩一个画面或一种感觉。醒来以后以系统告诉你的为准，写梦这一段当作睡着时的事，没记住的部分别拿出来说。",
+        o.selfSubmit ? o.selfSubmit(id) : `写完交回（id ${id}）：{"kind":"plain|sweet|odd|nightmare","title":"梦名","text":"梦","fragment":"醒来可能记得的一个画面","feeling":"醒来最先记得的感觉","intensity":1~5,"body":"哭 / 笑 / 喘 / 空","talk":"梦话，可以空"}`,
+      ].join("\n");
+    },
     nap: ({ fatigue }) => `[犯困] 有点撑不住了（累 ${fatigue}），你眯一会儿，20~40 分钟。`,
     drowsy: ({ now, said, idleMin, shTime }) => `[犯困] 你开始犯困了（${shTime(now)}，${said ? `${P}说了晚安，${idleMin} 分钟没再说话` : `${P} ${idleMin} 分钟没动静了`}）。20 分钟里${P}还没说话，你就会睡着；${P}一说话就不困了。`,
   };

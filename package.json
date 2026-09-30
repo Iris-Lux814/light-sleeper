@@ -29,7 +29,7 @@
     "llm"
   ],
   "scripts": {
-    "test": "node test/sleep-rules.test.js && node test/engine.test.js && node test/text.test.js"
+    "test": "node test/sleep-rules.test.js && node test/engine.test.js && node test/text.test.js && node test/dream-self.test.js"
   },
   "engines": {
     "node": ">=18"
