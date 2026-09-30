@@ -425,7 +425,7 @@ function createSleeper(o) {
     const herIn = sub === "loss" || sub === "erotic" || comforted || (kind !== "nightmare" && Math.random() < (n.sync == null ? 0.35 : 0.25 + 0.25 * n.sync / 100));
     let d = null; try { d = await DW.write(kind, { tone, comforted, sequel, herDream, sub, phase, mat: n.mat, herIn }); } catch (e) { log(`sleep: dream write failed: ${e.message}`); }
     if (!d) return;
-    // 自己写梦的时候（dream-self.js），种类由他定：以他写的为准
+    // 写梦的一方可以改种类（比如按写出来的内容定）：以写出来的为准
     if (["plain", "sweet", "odd", "nightmare"].includes(d.kind)) { kind = d.kind; if (d.sub === undefined) sub = ""; }
     if (d.sub !== undefined) sub = ["anxious", "erotic", "loss"].includes(d.sub) ? d.sub : "";
     delete d.kind; delete d.sub;

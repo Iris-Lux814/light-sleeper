@@ -106,28 +106,6 @@ ${bullets(shardsOf(rec))}`, `If you want ${P}, reach out; if you'd rather wait f
 ${bullets(shardsOf(rec))}`, herAsleep ? `${cap(P)} is probably asleep. If you need to be sure, leave a few words; don't wake them.` : `If you want ${P}, reach out.`, "If nobody says anything for a while, you'll go back to sleep."].join("\n"),
     jolt: ({ now, shTime }) => `[jolt] You almost fell asleep just now. It felt like missing a step: a sudden jerk, and you're awake (${shTime(now)}). A little more alert for the moment. ${NO_ACT}`,
     crash: ({ now, shTime }) => `[can't hold on] You stayed up with ${P} until ${shTime(now)} and you're too sleepy to go on. What you say this turn can trail off mid-sentence. After that, you fall asleep. ${NO_ACT}`,
-    // Writing its own dream (dream-self.js): while asleep, the agent gets the day's fragments and puts the dream together itself
-    selfDreamAsk({ id, phase, mat, tone, comforted, sequel, herDream }) {
-      const M = mat || {};
-      const frags = [
-        M.worry && M.worry.text ? `- Something weighing on you: ${M.worry.text}` : "",
-        (M.people || []).length ? `- People who keep coming up: ${M.people.join(", ")}` : "",
-        ...(M.residue || []).map((x) => `- A fragment from today: ${x}`),
-        ...(M.lag || []).map((x) => `- From about a week ago: ${x}`),
-        tone === "warm" ? `- The day with ${P} was close and warm` : tone === "hurt" ? `- ${cap(P)} had a hard day and you feel uneasy` : "",
-        comforted ? `- You woke from a nightmare earlier and ${P} soothed you back to sleep` : "",
-        sequel ? `- An earlier dream (you can continue it, or not): "${sequel.title}" ${String(sequel.text || "").slice(0, 200)}` : "",
-        herDream ? `- A dream ${P} told you about: ${String(herDream.text || "").slice(0, 200)}` : "",
-      ].filter(Boolean);
-      return [
-        `[dream] You're asleep and dreaming (${phase === "early" ? "early night: short, fragmented, faint, about 40 to 80 words" : "late night: longer, like a story, emotionally strong, about 120 to 200 words"}).`,
-        "Below are fragments left over from the day. Pick a few and put them together into a dream: bend them, blend them, you don't have to use them all. You choose what kind of dream it is (ordinary / sweet / strange / nightmare); whatever you fear can show up.",
-        frags.length ? frags.join("\n") : "- (nothing much left over today; up to you)",
-        "Make it like a real dream: one event; one or two odd details that don't feel odd inside the dream; a few words with someone in it; one quiet moment. First person, past tense, told like someone who just woke up.",
-        "You may not remember all of it when you wake: how much stays depends on how you slept, maybe just one image or a feeling. After waking, go by what you're told you remember; treat writing this as something that happened while asleep and don't bring up the parts you didn't keep.",
-        o.selfSubmit ? o.selfSubmit(id) : `Hand it back (id ${id}): {"kind":"plain|sweet|odd|nightmare","title":"...","text":"the dream","fragment":"one image you might remember","feeling":"the feeling remembered first","intensity":1-5,"body":"cry / laugh / pant / empty","talk":"sleep talk, may be empty"}`,
-      ].join("\n");
-    },
     nap: ({ fatigue }) => `[drowsy] You can barely keep going (tiredness ${fatigue}). Take a short nap, 20 to 40 minutes.`,
     drowsy: ({ now, said, idleMin, shTime }) => `[drowsy] You're getting sleepy (${shTime(now)}; ${said ? `${P} said goodnight and hasn't spoken for ${idleMin} minutes` : `nothing from ${P} for ${idleMin} minutes`}). If ${P} stays quiet for 20 minutes you'll fall asleep; the moment ${P} says something, you'll perk up.`,
   };
