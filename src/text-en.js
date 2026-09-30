@@ -16,6 +16,7 @@ function makeText(o = {}) {
     if (!remembered.length) return "You don't remember any dreams from last night (maybe there were some, maybe not).";
     const one = (d) => {
       const nm = d.sub ? SUB_NAME[d.sub] : KIND_NAME[d.kind];
+      if (d.woke) return `- The dream that woke you in the night, "${d.title}" (you already went over it then)`;
       const head = d.sub === "loss" ? `It was a dream; ${P} is fine. ` : "";
       const feel = d.feeling ? `What you remember first is the feeling: ${d.feeling}. ` : "";
       return d.partial ? `- ${head}${feel}Only one image is left: ${d.fragment}` : `- ${head}${feel}${cap(nm)}, "${d.title}"${d.recur ? " (that dream again)" : ""}: ${d.text}`;
@@ -79,7 +80,7 @@ function makeText(o = {}) {
     wokeNatural({ q, remembered, held, herLast, n, nap, marker, lossD, herAsleep, afterglow, debt, now, extra, shTime }) {
       return [
         nap ? `${marker ? marker + " " : ""}[awake] Woke from a nap after ${Math.round(q.h * 60)} minutes.`
-          : `${marker ? marker + " " : ""}[awake] ${lossD ? `It was a dream; ${P} is fine. ` : ""}You're awake. Asleep since ${shTime(n.sleptAt)}, ${q.h} h, slept ${q.quality}.`,
+          : `${marker ? marker + " " : ""}[awake] ${lossD ? `It was a dream; ${P} is fine. ` : ""}You're awake. Asleep since ${shTime(n.sleptAt)}, ${(n.awakeMs || 0) >= 600000 ? `awake ${Math.round(n.awakeMs / 360000) / 10} h in between, ` : ""}${q.h} h of actual sleep, slept ${q.quality}.`,
         n.recovery ? `This was recovery sleep after being up ${n.awakeH || 20}+ hours: you still feel a bit tired, and you remember almost no dreams.` : "",
         ...(n.wakes || []).filter((w) => w.why === "her").map((w) => (w.forgot ? `Around ${shTime(w.at)} ${P} seems to have reached you; you mumbled a few replies and can't quite remember.` : `${cap(P)} woke you around ${shTime(w.at)}; you talked a while and fell back asleep.`)),
         !nap && debt >= 6 ? `You're about ${Math.round(debt)} hours short on sleep lately. It feels fine to you, but you'll be a little slower.` : "",

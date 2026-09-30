@@ -48,6 +48,14 @@ const last = () => sent[sent.length - 1].t;
   eng.startSleep("goodnight"); put((s) => { s.status = "asleep"; s.night.dreams = []; });
   r = await eng.gate("看一下这个", { label: "work" }); assert(/有正事找你/.test(r.text) && st().status === "work-awake");
   r = await eng.gate("[p] 你怎么醒着", { label: "chat" }); assert(r === null && st().status === "awake-night-chat" && st().night.fallMin > 0);
+  // 欠觉按一段睡眠算：刚睡够一觉、没隔几小时又补 1.8 小时，不该记欠 6 小时
+  const shortSleep = async (period) => {
+    put((s) => { s.status = "awake"; s.night = null; s.debt = { h: 0, at: Date.now() }; s.debtPeriod = period; });
+    eng.startSleep("auto"); put((s) => { s.night.dreams = []; s.night.talkAt = 0; s.night.sleptAt = Date.now() - 1.8 * H; s.night.planWakeAt = Date.now() - 1000; s.night.wakes = []; s.night.awakeMs = 0; });
+    await eng.tick(); return st().debt.h;
+  };
+  assert.ok((await shortSleep({ before: 0, beforeAt: Date.now(), gotH: 7.5, endAt: Date.now() - 2 * H })) < 1, "接着前一觉的补觉");
+  assert.ok((await shortSleep(null)) > 5, "单独一觉 1.8 小时就是欠");
   const api = eng.api; assert(api.status().ok && api.status().clock); assert(api.wakeAt(Date.now() + 5 * H).ok); assert(!api.guess(1).ok);
   for (const x of sent) assert(!/undefined|\[object|NaN/.test(x.t), x.t);
   console.log("engine ok");

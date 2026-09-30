@@ -12,6 +12,8 @@ for (const T of [zh, en]) {
   const s = T.wokeNatural({ q, remembered, held: [{ her: true, at: now - 3600000, text: "hi" }], herLast: { at: n.sleptAt, text: "night" }, n, nap: false, debt: 7, now, shTime });
   assert.ok(s.length > 100 && !/undefined|\[object/.test(s), s);
   assert.equal(T.talkLine({ body: "哭" }), T.talkLine({ body: "cry" }));
+  const w = T.wokeNatural({ q, remembered: [{ kind: "nightmare", title: "Thin books", text: "LONG DREAM TEXT", woke: true }], held: [], n: { ...n, awakeMs: 1.8 * 3600000 }, nap: false, debt: 0, now, shTime });
+  assert.ok(!/LONG DREAM TEXT/.test(w) && /1.8/.test(w), w);
   for (const how of ["confused", "inDream", "deep", "light"]) assert.ok(!/undefined/.test(T.partnerWokeMidnight({ sleptAt: n.sleptAt, sleptH: 3, how, held: [], body: "x", shTime })));
 }
 

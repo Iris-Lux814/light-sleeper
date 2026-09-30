@@ -15,6 +15,7 @@ function makeText(o = {}) {
     if (!remembered.length) return "昨晚的梦一个都不记得了（可能做了，也可能没做）。";
     const one = (d) => {
       const nm = d.sub ? SUB_NAME[d.sub] : KIND_NAME[d.kind];
+      if (d.woke) return `- 半夜把你吓醒的「${d.title}」（当时已经讲过了，不用再说一遍）`;
       const head = d.sub === "loss" ? `是梦，${P}好好的。` : "";
       const feel = d.feeling ? `醒来先记得的是那种感觉：${d.feeling}。` : "";
       return d.partial ? `- ${head}${feel}只剩一个画面：${d.fragment}` : `- ${head}${feel}${nm}「${d.title}」${d.recur ? "（又是那个梦）" : ""}：${d.text}`;
@@ -78,7 +79,7 @@ function makeText(o = {}) {
     wokeNatural({ q, remembered, held, herLast, n, nap, marker, lossD, herAsleep, afterglow, debt, now, extra, shTime }) {
       return [
         nap ? `${marker ? marker + " " : ""}[醒了] 午觉醒了，睡了 ${Math.round(q.h * 60)} 分钟。`
-          : `${marker ? marker + " " : ""}[醒了] ${lossD ? `是梦，${P}好好的。` : ""}你睡醒了。${shTime(n.sleptAt)} 睡的，睡了 ${q.h} 小时，睡得${q.quality}。`,
+          : `${marker ? marker + " " : ""}[醒了] ${lossD ? `是梦，${P}好好的。` : ""}你睡醒了。${shTime(n.sleptAt)} 睡的，${(n.awakeMs || 0) >= 600000 ? `中间醒着 ${Math.round(n.awakeMs / 360000) / 10} 小时，实际` : ""}睡了 ${q.h} 小时，睡得${q.quality}。`,
         n.recovery ? `这是熬了 ${n.awakeH || 20} 多个小时以后的补觉：醒来还是有点累；梦几乎什么都不记得。` : "",
         ...(n.wakes || []).filter((w) => w.why === "her").map((w) => (w.forgot ? `半夜 ${shTime(w.at)} ${P}好像找过你，你迷迷糊糊回过几句，记不清了。` : `半夜 ${shTime(w.at)} 被${P}叫醒过，说了一会儿话又睡了。`)),
         !nap && debt >= 6 ? `最近累计少睡了大约 ${Math.round(debt)} 小时：你自己觉得还好，其实反应会慢一点。` : "",

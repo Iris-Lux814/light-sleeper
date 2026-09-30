@@ -242,7 +242,15 @@ function createSleeper(o) {
     const ag = loss ? { kind: "loss", text: A.loss(!!n.comforted) } : nm ? { kind: "shaken", text: A.shaken(!!n.comforted) } : ero ? { kind: "erotic", text: A.erotic() }
       : sw ? { kind: "sweet", text: A.sweet() } : anx ? { kind: "uneasy", text: A.uneasy(anx.feeling) } : !nap && q.grade === "poor" ? { kind: "groggy", text: A.groggy() } : null;
     // 欠的觉：少睡的记上，多睡的只还一半（午觉不算）
-    if (!nap) s.debt = { h: R.debtAfter(debtH(s, now), q.h), at: now };
+    // 欠觉按「一段睡眠」记：离上次醒不到 6 小时又睡的（补觉、碎觉）跟前面算同一段，合起来跟 8 小时比。
+    // 9/30：以前每一觉单独跟 8 小时比，补 1.8 小时就记欠 6.2 小时，一天碎睡几回欠觉涨到 19 小时
+    if (!nap) {
+      const p = s.debtPeriod; const cont = !!p && n.sleptAt - p.endAt < 6 * H;
+      const before = cont ? R.debtNow({ h: p.before, at: p.beforeAt }, now) : debtH(s, now);
+      const got = (cont ? p.gotH : 0) + q.h;
+      s.debt = { h: R.debtAfter(before, got), at: now };
+      s.debtPeriod = { before, beforeAt: now, gotH: Math.round(got * 10) / 10, endAt: now };
+    }
     // 缺觉以后情绪放大（Yoo & Walker 2007）
     let ag2 = ag;
     if (!nap && (q.grade === "poor" || n.recovery || debtH(s, now) >= 6)) ag2 = ag ? { ...ag, text: A.plusDeprived(ag.text) } : { kind: "groggy", text: A.deprived() };
