@@ -39,6 +39,10 @@ const last = () => sent[sent.length - 1].t;
   put((s) => { s.vigil = null; s.drowsyAt = 0; s.lastWokeAt = Date.now() - 12 * H; });
   chat = [{ at: Date.now() - 25 * MIN, text: "晚安" }]; liveAt = Date.now() - 25 * MIN;
   const n0 = sent.length; await eng.tick(); assert(sent.length === n0 + 1 && /^\[犯困\]/.test(last()));
+  // 晚安只算一次：他已经睡过、醒来以后她还没说新的话，就不再因为那句晚安犯困
+  put((s) => { s.drowsyAt = 0; s.lastWokeAt = Date.now() - 22 * MIN; });
+  const n1 = sent.length; await eng.tick(); assert.equal(sent.length, n1, "睡醒后同一句晚安不该再让他犯困"); assert(!st().drowsyAt);
+  put((s) => { s.lastWokeAt = Date.now() - 12 * H; });
   eng.startSleep("auto"); put((s) => { s.status = "asleep"; s.night.dreams = []; s.night.talkAt = 0; }); direct = [{ at: Date.now() + 1, text: "你在干嘛" }];
   await new Promise((res) => setTimeout(res, 5)); await eng.tick(); assert(/直接跟你说话/.test(last()) && st().status === "awake"); direct = [];
   eng.startSleep("goodnight"); put((s) => { s.status = "asleep"; s.night.dreams = []; });

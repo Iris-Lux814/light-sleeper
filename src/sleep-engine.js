@@ -503,7 +503,11 @@ function createSleeper(o) {
   }
   async function tickAwake(s, now) {
     herLastAt(s); noteHerSleep(s); const human = herAnyAt(s); save(s);
-    const rested = now - (s.lastWokeAt || 0) > 10 * H || (s.lastNight && s.lastNight.hours < 3);   // 上一觉不到 3 小时不算睡过
+    // 睡够了没：醒了 10 小时以上，或者过去 12 小时加起来睡了不到 3 小时（9/30：以前只看上一觉，补了 1.8 小时的一觉就当没睡过，又接着睡）
+    const sleptH = store.nights(20).filter((x) => x.wokeAt > now - 12 * H).reduce((a, x) => a + (x.hours || 0), 0);
+    const rested = now - (s.lastWokeAt || 0) > 10 * H || sleptH < 3;
+    // 她说的晚安只算一次：得是他这次醒来以后说的（9/30：她早上说完晚安一直睡到下午，他每次醒来 20 分钟就又睡，一天睡了四回）
+    const night = herSaidNightAny(s); const saidNight = !!night && night.at > (s.lastWokeAt || 0);
     const idle = !agent.busy();
     // 陪她熬夜：他已经很困、她 20 分钟内还有动静 → 每分钟按研究掷：点头、踩空抖醒（一晚最多一次）、撑不住睡着。
     // 她跟他说话能把他拉回来一截；她难过的时候全压住
@@ -546,8 +550,8 @@ function createSleeper(o) {
     if (s.drowsyAt && human > s.drowsyAt) { s.drowsyAt = 0; save(s); }
     else if (s.drowsyAt) {
       if (now - s.drowsyAt >= 20 * MIN && idle) { s.drowsyAt = 0; save(s); startSleep("auto"); }
-    } else if (idle && (((K.inRange(ck.hNow, ck.win.bed - 1, ck.win.wake) || ck.Z >= K.Z_HEAVY) && now - human > 90 * MIN && rested) || (herSaidNightAny(s) && now - human > 20 * MIN))) {
-      const said = !!herSaidNightAny(s);
+    } else if (idle && (((K.inRange(ck.hNow, ck.win.bed - 1, ck.win.wake) || ck.Z >= K.Z_HEAVY) && now - human > 90 * MIN && rested) || (saidNight && now - human > 20 * MIN))) {
+      const said = saidNight;
       s.drowsyAt = now; save(s);
       await agent.deliver(T.drowsy({ now, said, idleMin: Math.round((now - human) / MIN), shTime }), { label: T.labels.drowsy });
     }
