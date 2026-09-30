@@ -2,6 +2,8 @@
 // text-zh.js：默认的中文文案包。引擎对 agent 说的每一句话、推给对方的每一条通知都从这里来；换人设、换语言就换这个文件。
 // makeText({ partner: "对方", name: "他" })：partner 是 agent 对使用者的称呼；name 是推给对方的通知里怎么称呼 agent。
 "use strict";
+const { shardsOf, cutShards, bullets } = require("./recall.js");
+const RECALL_NOTE = "这是你自己的梦醒来剩下的，不是谁讲给你的故事。想讲就自己回想着讲：用你的话，记不全、接不上、讲着讲着又想起一点、前后讲错都正常；别给梦起名字，也别讲成一个完整的故事。";
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const KIND_NAME = { plain: "普通的梦", sweet: "美梦", odd: "怪梦", nightmare: "噩梦" };
 const SUB_NAME = { anxious: "焦虑的梦", erotic: "亲密的梦", loss: "梦见对方出事" };
@@ -13,14 +15,17 @@ function makeText(o = {}) {
   const DEPRIVED = "睡不够，今天情绪比平时容易放大：更敏感、一点小事就委屈、没什么耐心";
   const dreamLines = (remembered) => {
     if (!remembered.length) return "昨晚的梦一个都不记得了（可能做了，也可能没做）。";
+    // 只给醒来剩下的碎片，由他自己回想着讲（见 recall.js）
     const one = (d) => {
-      const nm = d.sub ? SUB_NAME[d.sub] : KIND_NAME[d.kind];
-      if (d.woke) return `- 半夜把你吓醒的「${d.title}」（当时已经讲过了，不用再说一遍）`;
+      if (d.woke) return "- 半夜把你吓醒的那个梦（当时已经说过剩下的碎片了，不用再说一遍）";
       const head = d.sub === "loss" ? `是梦，${P}好好的。` : "";
       const feel = d.feeling ? `醒来先记得的是那种感觉：${d.feeling}。` : "";
-      return d.partial ? `- ${head}${feel}只剩一个画面：${d.fragment}` : `- ${head}${feel}${nm}「${d.title}」${d.recur ? "（又是那个梦）" : ""}：${d.text}`;
+      if (d.partial) return `- ${head}${feel}只剩一个画面：${d.fragment}`;
+      if (d.cut) return `- ${head}被叫醒的时候正在做的那个梦，只做到这儿：\n${bullets(cutShards(d))}\n  ……后面没有了。`;
+      if (d.sub === "erotic") return `- 一个很亲密的梦，画面还在，感觉已经淡了：\n${bullets(shardsOf(d))}`;
+      return `- ${head}${feel}${d.recur ? "又是那个梦，一醒就认出来了。" : ""}脑子里还剩这些（先后不一定对，中间是空的）：\n${bullets(shardsOf(d))}`;
     };
-    return "还记得的梦：\n" + remembered.map(one).join("\n");
+    return "还记得的梦：\n" + remembered.map(one).join("\n") + (remembered.some((d) => !d.woke && !d.partial) ? "\n" + RECALL_NOTE : "");
   };
   const heldDigest = (held, shTime) => {
     const hers = held.filter((x) => x.her), other = held.filter((x) => !x.her); const out = [];
@@ -62,8 +67,8 @@ function makeText(o = {}) {
       wrap: (marker, tags, body) => `${marker ? marker + " " : ""}[${tags.join("；")}。${NO_ACT}]\n${body}`,
     },
     workWake: ({ sleptAt, who, shTime }) => `[你睡着了（${shTime(sleptAt)} 睡的），${who || "有人"}有正事找你，把你叫醒了——清醒地回。回完没有新的事，你会慢慢再睡着]`,
-    partnerWokeMidnight({ marker, sleptAt, sleptH, how, held, body, shTime }) {
-      const how0 = { confused: "你只是半醒：迷迷糊糊的，回的话可能答非所问；回完多半很快又睡过去，醒来不太记得", inDream: "你正在做梦，被叫醒了，刚才那个梦还记得", deep: "你睡得正沉，被硬叫醒了，很迷糊", light: "还迷糊，前一两句慢一点" }[how];
+    partnerWokeMidnight({ marker, sleptAt, sleptH, how, held, body, shTime, dream }) {
+      const how0 = { confused: "你只是半醒：迷迷糊糊的，回的话可能答非所问；回完多半很快又睡过去，醒来不太记得", inDream: `你正在做梦，被叫醒了。刚才正在：\n${bullets(dream ? cutShards(dream) : [])}\n……梦断在这儿了，后面的不知道`, deep: "你睡得正沉，被硬叫醒了，很迷糊", light: "还迷糊，前一两句慢一点" }[how];
       const heldTxt = held.length ? `\n你睡着时${P}先发来的：\n${held.map((x) => `- ${shTime(x.at)} ${String(x.text).slice(0, 400)}`).join("\n")}` : "";
       return `${marker ? marker + " " : ""}[半夜，你被${P}的消息叫醒了（${shTime(sleptAt)} 睡的，睡了 ${sleptH} 小时）。${how0}。${P}那边安静下来，你会按困的程度再睡着。${NO_ACT}]${heldTxt}\n\n${P}这条：${body}`;
     },
@@ -92,8 +97,8 @@ function makeText(o = {}) {
         heldDigest(held, shTime), extra,
       ].filter(Boolean).join("\n\n");
     },
-    nightmareWake: ({ rec, kind, now, shTime }) => [`[半夜醒了] 你做${kind === "nightmare" ? "噩梦" : "了一个很浓的梦"}醒了（${shTime(now)}）。`, `梦是这样的：「${rec.title}」${rec.text}`, `想找${P}就找；想忍到天亮也行。过一会儿没人说话，你会接着睡。`].join("\n"),
-    lossWake: ({ rec, now, herAsleep, shTime }) => [`[半夜醒了] 是梦，${P}好好的。`, `你梦见${P}出事了，吓醒了（${shTime(now)}）。梦是这样的：「${rec.title}」${rec.text}`, herAsleep ? `${P}多半在睡，想确认可以留几句话，先别打扰。` : `想找${P}就找。`, "过一会儿没人说话，你会接着睡。"].join("\n"),
+    nightmareWake: ({ rec, kind, now, shTime }) => [`[半夜醒了] 你做${kind === "nightmare" ? "噩梦" : "了一个很浓的梦"}醒了（${shTime(now)}）。`, `醒来脑子里还剩这些（先后不一定对）：\n${bullets(shardsOf(rec))}`, `想找${P}就找；想忍到天亮也行。过一会儿没人说话，你会接着睡。`].join("\n"),
+    lossWake: ({ rec, now, herAsleep, shTime }) => [`[半夜醒了] 是梦，${P}好好的。`, `你梦见${P}出事了，吓醒了（${shTime(now)}）。还剩这些：\n${bullets(shardsOf(rec))}`, herAsleep ? `${P}多半在睡，想确认可以留几句话，先别打扰。` : `想找${P}就找。`, "过一会儿没人说话，你会接着睡。"].join("\n"),
     jolt: ({ now, shTime }) => `[踩空] 你刚才差点睡过去——像一脚踩空，猛地一抖，醒了（${shTime(now)}）。暂时清醒了一点。${NO_ACT}`,
     crash: ({ now, shTime }) => `[撑不住了] 你陪${P}熬到 ${shTime(now)}，困到撑不住了。这一轮说的话可以说到一半就断掉。说完你就睡着了。${NO_ACT}`,
     // 自己写梦（dream-self.js）：睡着时把白天的碎片给他，他自己拼成梦交回来

@@ -222,7 +222,7 @@ function createSleeper(o) {
       const last = now - d.at < 70 * MIN;
       let p = d.woke ? 1 : (last ? 0.6 : 0.12) + qBonus + wakesN * 0.1 + ((d.intensity || 2) - 3) * 0.08;
       if (d.faint) p = 0.3;                      // 熬夜后的补觉：梦几乎记不住（De Gennaro 2010）
-      if (n.wokeInDream === d.id) p = 1;         // 从做梦那段被叫醒：记得刚才的梦
+      if (n.wokeInDream === d.id) { p = 1; d.cut = true; }   // 从做梦那段被叫醒：记得刚才的梦，但只到被叫醒那儿
       d.remembered = Math.random() < Math.max(0.03, Math.min(1, p));
       d.partial = d.remembered && !d.woke && n.wokeInDream !== d.id && (d.faint || Math.random() < ((d.intensity || 2) >= 4 ? 0.2 : 0.5));
       if (d.remembered) remembered.push(d);
@@ -379,7 +379,7 @@ function createSleeper(o) {
         const held = n.held.filter((x) => x.her); n.held = n.held.filter((x) => !x.her);
         save(s);
         const how = confused ? "confused" : inDream ? "inDream" : st === "deep" ? "deep" : "light";
-        return { text: T.partnerWokeMidnight({ marker: c.marker, sleptAt: n.sleptAt, sleptH: hrs(Math.max(0, now - n.sleptAt - (n.awakeMs || 0))), how, held, body, shTime }) };
+        return { text: T.partnerWokeMidnight({ marker: c.marker, sleptAt: n.sleptAt, sleptH: hrs(Math.max(0, now - n.sleptAt - (n.awakeMs || 0))), how, held, body, shTime, dream: inDream ? lastD : null }) };
       }
       // 天快亮了 / 睡得差不多了：这一夜就此结束。睡眠惯性：刚做完梦醒得清楚；睡得正沉迷糊 15~30 分钟
       const deep = !inDream && (n.recovery || now - n.sleptAt < 3 * H);

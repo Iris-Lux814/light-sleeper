@@ -37,6 +37,7 @@ const BODY = (s) => (/cry|sob|tear|哭|泣|泪/i.test(s || "") ? "cry" : /laugh|
 // Hard safety checks on the text. Override with your own if you write dreams in another language.
 const DEFAULT_GUARDS = {
   harm: /\b(she|he|they|you)\b[^.,]{0,40}\b(hurt|bleed\w*|die[sd]?|dead|killed|accident|hospital|vanish\w*|gone forever)\b|(她|他|你)[^。，]{0,8}(受伤|流血|死|去世|出事|车祸|病危|医院|消失不见|不在了)/i,
+  intimate: /(sex|kissw*|naked|bed|cumw*|horny|love you|baby|babe)|做爱|射|亲亲|老婆|老公|宝宝|吻|爱你|床上/i,
   gore: /\b(blood\w*|corpse|wound\w*|organs?|bones?|severed|shattered|crash site)\b|血|尸|伤口|内脏|骨头|遗体|车祸现场/i,
 };
 
@@ -55,6 +56,10 @@ function buildPrompt(kind, opts = {}, o = {}) {
   }
   const pool = [...(M.residue || []).map((x) => ["day", x]), ...(Math.random() < 0.3 ? (M.lag || []).map((x) => ["week", x]) : [])];
   if (pool.length) { const [t, x] = pick(pool); picks.push(`A fragment left over from ${t === "week" ? "about a week ago" : "the last day or two"} (transform it, don't copy it): ${x}`); }
+  // the dreamer's own words from the day (mat.words): a dream feels like one's own when it reuses one's own words
+  // intimate lines only go into intimate dreams (otherwise they end up in a stranger's mouth)
+  const words = (M.words || []).filter((x) => sub === "erotic" || !(o.guards || DEFAULT_GUARDS).intimate.test(x));
+  if (words.length && Math.random() < 0.6) picks.push(`Something the dreamer said themselves during the day; let it surface in the dream, as is or twisted (said by the dreamer, or said to them by someone in the dream): "${pick(words)}"`);
   const system = [
     `You are writing a dream that ${self} has tonight. Write it in ${lang}.`,
     "Write it the way people actually dream:",
@@ -74,7 +79,7 @@ function buildPrompt(kind, opts = {}, o = {}) {
       ? `- In this dream ${P} is hurt, leaves, or can't be found. Write only the dreamer's panic, not finding them, being too late, being unable to speak. No gore, no injuries or bodily detail, not how it happened.`
       : `- In this dream ${P} is not hurt, doesn't get sick, doesn't die, doesn't disappear.`,
     sub === "erotic" ? `- This is an intimate dream: the dreamer and ${P} are close; physical intimacy and sensation can be written, and the feelings in the dream are real. Keep the rules above: one event, one or two odd details, one pause.` : "",
-    'Output JSON only: {"title":"dream name, 2 to 5 words","text":"the dream","fragment":"one image remembered on waking, under 12 words","feeling":"the feeling remembered first, under 6 words","intensity":integer 1 to 5,"body":"does the sleeping body react: cry / laugh / pant / empty string","talk":"sleep talk if any: usually a vague \\"no…\\" or half a question, under 6 words, not tidy; or empty string"}',
+    'Output JSON only: {"title":"dream name, 2 to 5 words","text":"the dream","shards":["3 to 5 pieces left in their head on waking, in dream order: an image, a line said in the dream (in quotes), an action, a feeling, mixed; under 15 words each; first person; not joined into a story, no explanation"],"fragment":"one image remembered on waking, under 12 words","feeling":"the feeling remembered first, under 6 words","intensity":integer 1 to 5,"body":"does the sleeping body react: cry / laugh / pant / empty string","talk":"sleep talk if any: usually a vague \\"no…\\" or half a question, under 6 words, not tidy; or empty string"}',
   ].filter(Boolean).join("\n");
   const user = [
     `This dream is ${sub ? SUB[sub] : KIND[kind] || KIND.plain}.`,
@@ -100,8 +105,9 @@ function parseDream(r, { sub = "", phase = "late", useWorry = false, mat = null,
   if (!text) return null;
   if (LOOP_END.test(text)) return null;   // loop ending: write it again
   if (sub === "loss" ? guards.gore.test(text) : guards.harm.test(text) || harmsNamed(partner, text)) return null;
+  const shards = (Array.isArray(r.shards) ? r.shards : []).map((x) => String(x || "").trim().slice(0, 120)).filter(Boolean).slice(0, 5);
   return {
-    title: String(r.title || "").slice(0, 40), text: text.slice(0, 1500), fragment: String(r.fragment || "").slice(0, 80), feeling: String(r.feeling || "").slice(0, 40),
+    title: String(r.title || "").slice(0, 40), text: text.slice(0, 1500), ...(shards.length >= 2 ? { shards } : {}), fragment: String(r.fragment || "").slice(0, 80), feeling: String(r.feeling || "").slice(0, 40),
     intensity: Math.max(1, Math.min(5, Math.round(Number(r.intensity) || 2))), body: BODY(r.body), talk: String(r.talk || "").slice(0, 40),
     worry: useWorry && mat && mat.worry ? mat.worry.key || "" : "", phase,
   };

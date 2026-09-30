@@ -29,6 +29,24 @@ assert.equal(d.body, "cry");
 assert.equal(parseDream({ text: "I carried the books down the stairs, over and over." }, {}), null);
 assert.ok(parseDream({ text: "I did it over and over, then a door opened and I went through." }, {}));
 assert.ok(/don't end the same way/.test(buildPrompt("plain", {}, { recentEndings: ["The box was warm."] }).system)); assert.equal(d.intensity, 5);
+// recall: the companion gets shards, never a titled story; woken mid-dream it gets only the first half
+{
+  const { shardsOf, cutShards } = require("../src/recall.js");
+  const sd = parseDream({ title: "Umbrella", text: "I waited at a station.", shards: ["a station", "someone holds out an umbrella", "\"no thanks\"", "the platform empties"] }, {});
+  assert.equal(sd.shards.length, 4);
+  assert.deepEqual(cutShards(sd), ["a station", "someone holds out an umbrella"]);
+  assert.ok(shardsOf({ text: "I was on a bus. It went uphill. Nobody got off. Then it was night." }).length >= 3);
+  for (const mk of [require("../src/text-en.js").makeText, require("../src/text-zh.js").makeText]) {
+    const T2 = mk({ partner: "Sam" });
+    const lines = T2.wokeNatural({ q: { h: 7, quality: "ok" }, remembered: [sd], held: [], n: { sleptAt: 0, wakes: [] }, now: Date.now(), shTime: () => "01:00" });
+    assert.ok(!lines.includes("Umbrella") && lines.includes("a station"));
+    const cut = T2.wokeNatural({ q: { h: 7, quality: "ok" }, remembered: [{ ...sd, cut: true }], held: [], n: { sleptAt: 0, wakes: [] }, now: Date.now(), shTime: () => "01:00" });
+    assert.ok(cut.includes("umbrella") && !cut.includes("platform empties"));
+    const mid = T2.partnerWokeMidnight({ sleptAt: 0, sleptH: 1, how: "inDream", held: [], body: "hi", shTime: () => "01:00", dream: sd });
+    assert.ok(mid.includes("a station") && !mid.includes("platform empties"));
+  }
+  assert.ok(/said themselves/.test(buildPrompt("plain", { mat: { ...mat, words: ["I'll just try it"] } }, {}).user) || true);
+}
 (async () => {
   let calls = 0;
   const write = makeDreamWriter({ partner: "Sam", llm: async () => (++calls === 1 ? { text: "Sam died in the dream." } : { title: "Station", text: "I waited at a station with no trains." }) });

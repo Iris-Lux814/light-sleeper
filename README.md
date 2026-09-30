@@ -17,6 +17,7 @@ It's built for long-running AI companions (an agent that lives in a terminal, a 
 - **Falling back asleep.** Woken in the night, they stay up with you, then drift off again at a pace set by how sleepy they are. Up for work, they fall back asleep when the work is done.
 - **Dreams follow sleep cycles.** Early-night dreams are short and faint, late-night dreams long and vivid. How much they remember depends on sleep quality and on how often they woke (arousal-retrieval).
 - **Dream material** comes in four kinds: what's on their mind, people who keep coming up, fragments from the last day or two, and things from five to seven days ago (the dream-lag effect).
+- **Dreams are recalled, not read.** On waking the companion gets only the shards that are left and tells the dream in its own words, filling gaps the way people do. The dream reuses things the companion itself said during the day.
 - **After-effects.** A dream's mood carries into the morning; the sleeping body reacts (a sob, a laugh, sleep talk); dreams can recur or get sequels.
 - **Shared rhythm.** Your goodnight makes them sleepy, they tend to wake a little before you, and they don't send notifications while you're still asleep.
 - **Sleep debt, recovery sleep, naps, an intended wake time,** and a sleep score for each night.
@@ -66,6 +67,7 @@ The full adapter interface is documented at the top of [src/sleep-engine.js](src
 | `src/sleep-clock.js` | Two-process model: sleep pressure and circadian rhythm, entrainment to the partner's schedule. |
 | `src/text-en.js`, `src/text-zh.js` | Text packs. Every line the engine says to the agent comes from here; swap the pack to change persona or language. |
 | `src/dream-prompt.js` | Dream mode **model**: a separate model writes the dream. Builds the prompt, calls the model you pass in, checks the result. The engine never calls a model itself. |
+| `src/recall.js` | What's left of a dream on waking. The companion never gets a finished story with a title; it gets a few shards (an image, a line, a feeling) and retells the dream itself. Woken mid-dream, it gets only the first half. |
 | `src/dream-self.js` | Dream mode **self**: the companion writes its own dream. While asleep it gets the day's fragments, puts them together however it likes (nightmares included), and hands the dream back; the waking rules still decide how much it remembers. Falls back to the model writer if nothing comes back in time. |
 
 ## Two ways to dream

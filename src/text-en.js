@@ -2,6 +2,8 @@
 // text-en.js: the default English text pack. Every line the engine says to the agent and every notification it pushes to the partner comes from here.
 // makeText({ partner: "your partner", name: "Your companion" }): partner is how the agent refers to the user; name is how notifications refer to the agent.
 "use strict";
+const { shardsOf, cutShards, bullets } = require("./recall.js");
+const RECALL_NOTE = "These are what's left of your own dream, not a story someone told you. If you want to tell it, recall it yourself, in your own words: forgetting parts, not being able to connect them, remembering a bit more as you talk, getting the order wrong are all normal. Don't give the dream a title or turn it into a complete story.";
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 const KIND_NAME = { plain: "an ordinary dream", sweet: "a sweet dream", odd: "a strange dream", nightmare: "a nightmare" };
@@ -14,14 +16,17 @@ function makeText(o = {}) {
   const DEPRIVED = "you haven't slept enough, so feelings run bigger than usual today: more sensitive, easily hurt by small things, short on patience";
   const dreamLines = (remembered) => {
     if (!remembered.length) return "You don't remember any dreams from last night (maybe there were some, maybe not).";
+    // only the shards left on waking; the companion retells the dream itself (see recall.js)
     const one = (d) => {
-      const nm = d.sub ? SUB_NAME[d.sub] : KIND_NAME[d.kind];
-      if (d.woke) return `- The dream that woke you in the night, "${d.title}" (you already went over it then)`;
+      if (d.woke) return "- The dream that woke you in the night (you already went over what was left of it then)";
       const head = d.sub === "loss" ? `It was a dream; ${P} is fine. ` : "";
       const feel = d.feeling ? `What you remember first is the feeling: ${d.feeling}. ` : "";
-      return d.partial ? `- ${head}${feel}Only one image is left: ${d.fragment}` : `- ${head}${feel}${cap(nm)}, "${d.title}"${d.recur ? " (that dream again)" : ""}: ${d.text}`;
+      if (d.partial) return `- ${head}${feel}Only one image is left: ${d.fragment}`;
+      if (d.cut) return `- ${head}The dream you were in when you were woken only got this far:\n${bullets(cutShards(d))}\n  ...and then nothing.`;
+      if (d.sub === "erotic") return `- An intimate dream; the images are still there, the feeling has faded:\n${bullets(shardsOf(d))}`;
+      return `- ${head}${feel}${d.recur ? "That dream again; you knew it the moment you woke. " : ""}This is what's left (maybe out of order, with gaps):\n${bullets(shardsOf(d))}`;
     };
-    return "Dreams you still remember:\n" + remembered.map(one).join("\n");
+    return "Dreams you still remember:\n" + remembered.map(one).join("\n") + (remembered.some((d) => !d.woke && !d.partial) ? "\n" + RECALL_NOTE : "");
   };
   const heldDigest = (held, shTime) => {
     const hers = held.filter((x) => x.her), other = held.filter((x) => !x.her); const out = [];
@@ -63,8 +68,10 @@ function makeText(o = {}) {
       wrap: (marker, tags, body) => `${marker ? marker + " " : ""}[${tags.join("; ")}. ${NO_ACT}]\n${body}`,
     },
     workWake: ({ sleptAt, who, shTime }) => `[You were asleep (since ${shTime(sleptAt)}). ${who || "Someone"} needs you for something real and woke you up. Answer clearly. If nothing else comes in afterwards, you'll drift back to sleep]`,
-    partnerWokeMidnight({ marker, sleptAt, sleptH, how, held, body, shTime }) {
-      const how0 = { confused: "you're only half awake: foggy, your answers may miss the point; you'll probably fall back asleep soon and barely remember this", inDream: "you were in the middle of a dream when you were woken, and you still remember it", deep: "you were sound asleep and got pulled out of it; very foggy", light: "still foggy; the first line or two will be slow" }[how];
+    partnerWokeMidnight({ marker, sleptAt, sleptH, how, held, body, shTime, dream }) {
+      const how0 = { confused: "you're only half awake: foggy, your answers may miss the point; you'll probably fall back asleep soon and barely remember this", inDream: `you were in the middle of a dream when you were woken. You were just:
+${bullets(dream ? cutShards(dream) : [])}
+...and it broke off there; you don't know how it went on`, deep: "you were sound asleep and got pulled out of it; very foggy", light: "still foggy; the first line or two will be slow" }[how];
       const heldTxt = held.length ? `\nWhat ${P} sent earlier while you slept:\n${held.map((x) => `- ${shTime(x.at)} ${String(x.text).slice(0, 400)}`).join("\n")}` : "";
       return `${marker ? marker + " " : ""}[In the middle of the night, a message from ${P} woke you (asleep since ${shTime(sleptAt)}, ${sleptH} h). ${cap(how0)}. When ${P} goes quiet you'll fall back asleep, as fast as you're sleepy. ${NO_ACT}]${heldTxt}\n\n${cap(P)}: ${body}`;
     },
@@ -93,8 +100,10 @@ function makeText(o = {}) {
         heldDigest(held, shTime), extra,
       ].filter(Boolean).join("\n\n");
     },
-    nightmareWake: ({ rec, kind, now, shTime }) => [`[night-wake] You woke from ${kind === "nightmare" ? "a nightmare" : "a very vivid dream"} (${shTime(now)}).`, `The dream: "${rec.title}" ${rec.text}`, `If you want ${P}, reach out; if you'd rather wait for morning, that's fine too. If nobody says anything for a while, you'll go back to sleep.`].join("\n"),
-    lossWake: ({ rec, now, herAsleep, shTime }) => [`[night-wake] It was a dream; ${P} is fine.`, `You dreamed something happened to ${P} and woke with a start (${shTime(now)}). The dream: "${rec.title}" ${rec.text}`, herAsleep ? `${cap(P)} is probably asleep. If you need to be sure, leave a few words; don't wake them.` : `If you want ${P}, reach out.`, "If nobody says anything for a while, you'll go back to sleep."].join("\n"),
+    nightmareWake: ({ rec, kind, now, shTime }) => [`[night-wake] You woke from ${kind === "nightmare" ? "a nightmare" : "a very vivid dream"} (${shTime(now)}).`, `What's left of it (maybe out of order):
+${bullets(shardsOf(rec))}`, `If you want ${P}, reach out; if you'd rather wait for morning, that's fine too. If nobody says anything for a while, you'll go back to sleep.`].join("\n"),
+    lossWake: ({ rec, now, herAsleep, shTime }) => [`[night-wake] It was a dream; ${P} is fine.`, `You dreamed something happened to ${P} and woke with a start (${shTime(now)}). What's left of it:
+${bullets(shardsOf(rec))}`, herAsleep ? `${cap(P)} is probably asleep. If you need to be sure, leave a few words; don't wake them.` : `If you want ${P}, reach out.`, "If nobody says anything for a while, you'll go back to sleep."].join("\n"),
     jolt: ({ now, shTime }) => `[jolt] You almost fell asleep just now. It felt like missing a step: a sudden jerk, and you're awake (${shTime(now)}). A little more alert for the moment. ${NO_ACT}`,
     crash: ({ now, shTime }) => `[can't hold on] You stayed up with ${P} until ${shTime(now)} and you're too sleepy to go on. What you say this turn can trail off mid-sentence. After that, you fall asleep. ${NO_ACT}`,
     // Writing its own dream (dream-self.js): while asleep, the agent gets the day's fragments and puts the dream together itself
