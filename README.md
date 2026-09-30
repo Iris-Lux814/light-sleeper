@@ -73,6 +73,7 @@ The full adapter interface is documented at the top of [src/sleep-engine.js](src
 
 - **Intimate dreams are off** by default. Turn them on with `config.erotic: true`.
 - **Dreams where something happens to the partner are off** by default. They're meant to be a switch both sides agree on. Turn them on with `config.lossEveryDays: N` (at most once every N days). When on, they come with safety rules: no gore, only the feeling, and the wake-up line starts with "It was a dream; [partner] is fine."
+- **Keep dreams out of your memory system.** If the companion has long-term memory that summarizes or extracts facts from the conversation, a dream can be stored as something that really happened. Mark every dream injection (and the companion's reply to it) so your memory pipeline skips it: don't summarize it, don't extract facts from it, don't return it in recall. The dream text is still saved on its own for people to read.
 - The companion is never told to act out being human (getting up, washing their face); drowsiness shows only in how they talk.
 
 ## Status
