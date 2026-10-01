@@ -60,6 +60,14 @@ setInterval(() => sleeper.tick(), 60000);
 
 The full adapter interface is documented at the top of [src/sleep-engine.js](src/sleep-engine.js).
 
+## Hosts without Node
+
+The engine itself needs no Node built-ins. Only `fileStore` touches the file system, and only when you use it.
+
+- **Storage:** `kvStore({ get, set })` puts the same data on any key-value store (an app's script storage, `localStorage`). `memoryStore()` keeps it in memory for tests.
+- **Time zones:** without `Intl` (QuickJS and other small engines), pass `config.utcOffsetMin` (for example `540` for UTC+9). With neither, the host's local time is used.
+- **One file:** `npm run bundle` writes `dist/light-sleeper.js`, every module in one script with no `require`. Load it and use `globalThis.LightSleeper`. It is tested in QuickJS.
+
 ## Code
 
 | File | What it is |
@@ -71,6 +79,7 @@ The full adapter interface is documented at the top of [src/sleep-engine.js](src
 | `src/dream-prompt.js` | A separate model writes the dream. Builds the prompt, calls the model you pass in, checks the result. The engine never calls a model itself. |
 | `src/dream-live.js` | Live mode: sends the dream into the conversation one scene at a time and waits for the companion's reaction (`makeLiveDreamWriter`, plus a default text pack `makeLiveText`). Falls back to a normal dream if the companion doesn't answer. |
 | `src/deep.js` | Which dreams are remembered for a long time: depth score at waking, cue-based recall, strengthening and fading. |
+| `src/tz.js` | Wall-clock time in a time zone, with `Intl` or a fixed offset. |
 | `src/recall.js` | What's left of a dream on waking. The companion never gets a finished story with a title; it gets a few shards (an image, a line, a feeling) and retells the dream itself. Woken mid-dream, it gets only the first half. |
 
 ## Defaults worth knowing

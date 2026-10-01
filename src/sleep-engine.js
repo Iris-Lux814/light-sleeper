@@ -2,12 +2,13 @@
 // sleep-engine.js：睡与醒的状态机。不认识任何具体的人：消息从哪来、对方在不在、梦用哪个模型写、对 agent 说的每一句话，都由适配层传进来。
 // 规则在 sleep-rules.js，作息同频的计算在 sleep-clock.js；这里只管：什么时候睡、什么时候醒、消息闸、排梦、醒来汇总。
 "use strict";
-const fs = require("fs");
-const path = require("path");
-delete require.cache[require.resolve("./sleep-clock.js")];
-delete require.cache[require.resolve("./sleep-rules.js")];
+// 宿主没有 Node（QuickJS 之类）也能跑：fs / path 只在 fileStore 里用到时才 require；热加载时清缓存也只在有 require.cache 时做
+if (typeof require === "function" && require.cache && require.resolve) {
+  for (const m of ["./sleep-clock.js", "./sleep-rules.js", "./tz.js"]) { try { delete require.cache[require.resolve(m)]; } catch { /* bundled */ } }
+}
 const K = require("./sleep-clock.js");
 const R = require("./sleep-rules.js");
+const { makeTz } = require("./tz.js");
 
 const MIN = 60000, H = 3600000;
 const rid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
@@ -16,6 +17,7 @@ const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // ── 默认的存储：一个目录里几个 JSON / JSONL 文件 ──
 function fileStore(dir, names = {}) {
+  const fs = require("fs"), path = require("path");
   const N = { state: "state.json", nights: "nights.jsonl", dreams: "dreams.jsonl", seed: "partner-seed.json", partnerDreams: "partner-dreams.jsonl", ...names };
   const F = (k) => path.join(dir, N[k]);
   const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return d; } };
@@ -32,9 +34,28 @@ function fileStore(dir, names = {}) {
   };
 }
 
+// ── 没有文件系统的宿主：把同一套接口落到一个键值存储上（get(key) → 字符串或 null，set(key, 字符串)）──
+// 比如手机上的 agent App 给脚本的存储、浏览器的 localStorage。jsonl 存成数组，只留最近 keep 条。
+function kvStore({ get, set }, { prefix = "light-sleeper:", keep = 2000 } = {}) {
+  const K_ = (k) => prefix + k;
+  const read = (k, d) => { try { const v = get(K_(k)); return v == null || v === "" ? d : JSON.parse(v); } catch { return d; } };
+  const write = (k, v) => set(K_(k), JSON.stringify(v));
+  const push = (k, r) => { const a = read(k, []); a.push(r); write(k, a.slice(-keep)); };
+  return {
+    load: (def) => read("state", def), save: (s) => write("state", s),
+    appendNight: (r) => push("nights", r), nights: (n = 500) => read("nights", []).slice(-n),
+    appendDream: (r) => push("dreams", r), dreams: (n = 500) => read("dreams", []).slice(-n),
+    writeDreams: (all) => write("dreams", all.slice(-keep)),
+    seed: () => read("seed", []),
+    partnerDreams: (n = 500) => read("partnerDreams", []).slice(-n), appendPartnerDream: (r) => push("partnerDreams", r),
+  };
+}
+// 只在内存里（测试、试玩）
+function memoryStore() { const m = new Map(); return kvStore({ get: (k) => (m.has(k) ? m.get(k) : null), set: (k, v) => m.set(k, v) }); }
+
 /**
  * 适配层要给的：
- *  store     见 fileStore
+ *  store     见 fileStore（Node）/ kvStore（键值存储）/ memoryStore（测试）
  *  agent     { deliver(text, {label, silent}) 往 agent 里递一句；busy() 正在回话吗；lastTurnEndAt()；notify(text, label) 推给对方；ready() 消息闸接好了吗；hush(at) 对方在睡、先别推送（0 = 恢复） }
  *  partner   { liveAt() 对方最后一次跟他说话；elsewhere() {at,text} 对方在别处（群聊等）最后一句；presenceAt() App 开着的心跳；
  *              chat() 对方最近说的话 [{at,text}]（按时间）；directSince(t) 对方绕过消息闸直接跟他说的话 [{at,text}]；
@@ -48,11 +69,11 @@ function fileStore(dir, names = {}) {
 function createSleeper(o) {
   const { store, agent, partner, classify, dreams: DW, text: T, mem = {}, log = () => {} } = o;
   const cfg = { tz: "UTC", lossEveryDays: 0, erotic: false, seedHours: [7, 8, 7.5], ...(o.config || {}) };
-  const TZ = cfg.tz;
+  const TZ = makeTz(cfg.tz, cfg.utcOffsetMin);   // config.utcOffsetMin：宿主没有 Intl 时用固定时差（分钟）
   const extras = o.extras || {};
   const FATIGUE_DECAY_PER_H = 8;
-  const shTime = (t) => new Date(t).toLocaleTimeString("zh-CN", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
-  const shDay = (t) => new Date(t).toLocaleDateString("sv-SE", { timeZone: TZ });
+  const shTime = (t) => TZ.time(t);
+  const shDay = (t) => TZ.day(t);
   const hrs = (ms) => Math.round(ms / 360000) / 10;
 
   const load = () => store.load({ status: "awake", night: null, fatigue: { v: 0, at: Date.now() }, lastWokeAt: 0, lastSleptAt: 0 });
@@ -645,4 +666,4 @@ function talkSoonAt(n) {
   return 0;
 }
 
-module.exports = { createSleeper, fileStore, SUB_KIND, TALK_LEAD_MS };
+module.exports = { createSleeper, fileStore, kvStore, memoryStore, SUB_KIND, TALK_LEAD_MS };

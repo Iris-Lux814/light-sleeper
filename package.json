@@ -15,14 +15,16 @@
     "./dream-prompt": "./src/dream-prompt.js",
     "./recall": "./src/recall.js",
     "./dream-live": "./src/dream-live.js",
-    "./deep": "./src/deep.js"
+    "./deep": "./src/deep.js",
+    "./tz": "./src/tz.js"
   },
   "files": [
     "src",
     "examples",
     "docs",
     "DESIGN.md",
-    "README.zh-CN.md"
+    "README.zh-CN.md",
+    "scripts"
   ],
   "keywords": [
     "ai-companion",
@@ -32,7 +34,8 @@
     "llm"
   ],
   "scripts": {
-    "test": "node test/sleep-rules.test.js && node test/engine.test.js && node test/text.test.js"
+    "test": "node test/sleep-rules.test.js && node test/engine.test.js && node test/text.test.js && node test/live.test.js && node test/portable.test.js",
+    "bundle": "node scripts/bundle.js"
   },
   "engines": {
     "node": ">=18"

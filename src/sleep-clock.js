@@ -10,10 +10,12 @@ const H = 3600000;
 const mod24 = (h) => ((h % 24) + 24) % 24;
 // a − b，落在 (−12, 12]
 const cdiff = (a, b) => { let d = mod24(a - b); if (d > 12) d -= 24; return d; };
+// tz: a zone name ("Asia/Tokyo") or a clock from tz.js (works without Intl)
+const { makeTz } = require("./tz.js");
+const zones = {};
 function hourOf(t, tz) {
-  const p = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date(t));
-  const g = (k) => Number((p.find((x) => x.type === k) || {}).value || 0);
-  return g("hour") + g("minute") / 60;
+  const z = tz && typeof tz === "object" ? tz : (zones[tz || "UTC"] ||= makeTz(tz || "UTC"));
+  return z.hourOf(t);
 }
 const fmt = (h) => { const m = Math.round(mod24(h) * 60) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
 
