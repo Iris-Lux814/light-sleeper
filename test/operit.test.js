@@ -61,3 +61,8 @@ test("operit adapter: setup, gate, sleep, live dream, saved state", async () => 
   assert.ok(R2.sent.length >= 1 && R2.sent.every((s) => /^\[dream\]/.test(s.message) && s.chatId === "chat1" && s.opts.hide_user_message));
   assert.ok(JSON.parse(JSON.parse(R2.files.get("/plugins/light_sleeper/data.json")).dreams).length >= 1, "saved to the file");
 });
+
+test("operit manifest: the bundle id differs from every subpackage id", () => {
+  const m = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "adapters", "operit", "manifest.json"), "utf8"));
+  assert.ok(m.subpackages.length && m.subpackages.every((s) => s.id !== m.toolpkg_id), "Operit refuses to activate a subpackage that shares the bundle's id");
+});

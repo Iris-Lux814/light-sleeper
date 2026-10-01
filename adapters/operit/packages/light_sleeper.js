@@ -2,7 +2,7 @@
 METADATA
 {
   "name": "light_sleeper",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "display_name": { "zh": "浅眠", "en": "light-sleeper" },
   "description": {
     "zh": "让这个聊天里的 AI 会困、会睡、会做梦。先在要用的聊天里运行 setup。",

@@ -6,7 +6,7 @@ A ToolPkg that lets the AI in one Operit chat get drowsy, fall asleep and dream.
 
 1. Build it: `node adapters/operit/build.js` → `dist/light_sleeper.toolpkg`. (Or take it from a release.)
 2. Copy `light_sleeper.toolpkg` to the phone and import it in Operit (package manager → import package), or put it in `Android/data/com.ai.assistance.operit/files/packages/`.
-3. Enable the package. Settings are optional (environment config):
+3. Enable the package (the bundle is `light_sleeper_bundle`; its tools are in the `light_sleeper` subpackage, which is what the AI activates with `use_package`). Settings are optional (environment config):
    - `LIGHT_SLEEPER_PARTNER`: what the AI calls you.
    - `LIGHT_SLEEPER_LANG`: `zh` or `en`.
    - `LIGHT_SLEEPER_UTC_OFFSET`: your time zone in minutes (480 = UTC+8). Leave empty to use the phone's time.
@@ -37,7 +37,7 @@ The manifest declares `api_version: 1.0.1`, which Operit2 accepts for v1 package
 
 让 Operit 某个聊天里的 AI 会困、会睡、会做梦。
 
-1. 把 `light_sleeper.toolpkg` 导入 Operit（包管理 → 导入包），启用。
+1. 把 `light_sleeper.toolpkg` 导入 Operit（包管理 → 导入包），启用。外层包叫 `light_sleeper_bundle`，工具在子包 `light_sleeper` 里，AI 用 `use_package` 要激活的是子包。
 2. 环境配置（都可以不填）：`LIGHT_SLEEPER_PARTNER`（AI 怎么称呼你）、`LIGHT_SLEEPER_LANG`（zh / en）、`LIGHT_SLEEPER_UTC_OFFSET`（东八区填 480，不填用手机时间）、`LIGHT_SLEEPER_DREAMS`（live 默认 / model）。
 3. 在要用的聊天里让 AI 调一次 `light_sleeper:setup`：绑定这个聊天，并建一个每 15 分钟跑一次的工作流。建不了就手动建：定时触发每 15 分钟，动作 `light_sleeper:tick`。
 4. 在角色卡里告诉 AI：说完晚安可以调 `light_sleeper:go_to_sleep` 去睡。困了也会自己睡。
