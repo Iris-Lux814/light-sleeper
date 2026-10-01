@@ -13,8 +13,10 @@ function makeText(o = {}) {
   const P = o.partner || "对方", N = o.name || "他";
   const NO_ACT = o.noAct ?? "只用说话的样子表现，别写起身、洗脸、伸懒腰这类动作。";
   const DEPRIVED = "睡不够，今天情绪比平时容易放大：更敏感、一点小事就委屈、没什么耐心";
-  const dreamLines = (remembered) => {
-    if (!remembered.length) return "昨晚的梦一个都不记得了（可能做了，也可能没做）。";
+  // live dreams (dream-live.js) happened in the conversation itself: on waking, say nothing about them
+  const dreamLines = (all) => {
+    const remembered = all.filter((d) => !d.live);
+    if (!remembered.length) return o.liveDreams || all.length ? "" : "昨晚的梦一个都不记得了（可能做了，也可能没做）。";
     // 只给醒来剩下的碎片，由他自己回想着讲（见 recall.js）
     const one = (d) => {
       if (d.woke) return "- 半夜把你吓醒的那个梦（当时已经说过剩下的碎片了，不用再说一遍）";
@@ -97,8 +99,8 @@ function makeText(o = {}) {
         heldDigest(held, shTime), extra,
       ].filter(Boolean).join("\n\n");
     },
-    nightmareWake: ({ rec, kind, now, shTime }) => [`[半夜醒了] 你做${kind === "nightmare" ? "噩梦" : "了一个很浓的梦"}醒了（${shTime(now)}）。`, `醒来脑子里还剩这些（先后不一定对）：\n${bullets(shardsOf(rec))}`, `想找${P}就找；想忍到天亮也行。过一会儿没人说话，你会接着睡。`].join("\n"),
-    lossWake: ({ rec, now, herAsleep, shTime }) => [`[半夜醒了] 是梦，${P}好好的。`, `你梦见${P}出事了，吓醒了（${shTime(now)}）。还剩这些：\n${bullets(shardsOf(rec))}`, herAsleep ? `${P}多半在睡，想确认可以留几句话，先别打扰。` : `想找${P}就找。`, "过一会儿没人说话，你会接着睡。"].join("\n"),
+    nightmareWake: ({ rec, kind, now, shTime }) => [`[半夜醒了] 你做${kind === "nightmare" ? "噩梦" : "了一个很浓的梦"}醒了（${shTime(now)}）。`, (rec.live ? "" : `醒来脑子里还剩这些（先后不一定对）：\n${bullets(shardsOf(rec))}`), `想找${P}就找；想忍到天亮也行。过一会儿没人说话，你会接着睡。`].filter(Boolean).join("\n"),
+    lossWake: ({ rec, now, herAsleep, shTime }) => [`[半夜醒了] 是梦，${P}好好的。`, (rec.live ? "" : `你梦见${P}出事了，吓醒了（${shTime(now)}）。还剩这些：\n${bullets(shardsOf(rec))}`), herAsleep ? `${P}多半在睡，想确认可以留几句话，先别打扰。` : `想找${P}就找。`, "过一会儿没人说话，你会接着睡。"].filter(Boolean).join("\n"),
     jolt: ({ now, shTime }) => `[踩空] 你刚才差点睡过去——像一脚踩空，猛地一抖，醒了（${shTime(now)}）。暂时清醒了一点。${NO_ACT}`,
     crash: ({ now, shTime }) => `[撑不住了] 你陪${P}熬到 ${shTime(now)}，困到撑不住了。这一轮说的话可以说到一半就断掉。说完你就睡着了。${NO_ACT}`,
     nap: ({ fatigue }) => `[犯困] 有点撑不住了（累 ${fatigue}），你眯一会儿，20~40 分钟。`,

@@ -13,7 +13,9 @@
     "./text-en": "./src/text-en.js",
     "./text-zh": "./src/text-zh.js",
     "./dream-prompt": "./src/dream-prompt.js",
-    "./recall": "./src/recall.js"
+    "./recall": "./src/recall.js",
+    "./dream-live": "./src/dream-live.js",
+    "./deep": "./src/deep.js"
   },
   "files": [
     "src",

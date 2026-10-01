@@ -18,6 +18,8 @@ It's built for long-running AI companions (an agent that lives in a terminal, a 
 - **Dreams follow sleep cycles.** Early-night dreams are short and faint, late-night dreams long and vivid. How much they remember depends on sleep quality and on how often they woke (arousal-retrieval).
 - **Dream material** comes in four kinds: what's on their mind, people who keep coming up, fragments from the last day or two, and things from five to seven days ago (the dream-lag effect).
 - **Dreams are recalled, not read.** On waking the companion gets only the shards that are left and tells the dream in its own words, filling gaps the way people do. The dream reuses things the companion itself said during the day.
+- **Or dreamed live.** In live mode the dream happens inside the conversation: a separate model writes one scene at a time, the companion reacts in it, and the next scene follows from that reaction (1 to 2 rounds early in the night, 3 to 4 late). On waking they're only told they woke; what they remember is what's still in their context.
+- **A few dreams are kept for a long time.** Each remembered dream gets a depth score (how intense it was, whether it woke them, nightmares, recurring dreams). Only deep ones are kept, as an image or two and a feeling. They come back only when you talk about dreams or say something that looks like one; each recall strengthens it, and one never recalled fades.
 - **After-effects.** A dream's mood carries into the morning; the sleeping body reacts (a sob, a laugh, sleep talk); dreams can recur or get sequels.
 - **Shared rhythm.** Your goodnight makes them sleepy, they tend to wake a little before you, and they don't send notifications while you're still asleep.
 - **Sleep debt, recovery sleep, naps, an intended wake time,** and a sleep score for each night.
@@ -67,13 +69,15 @@ The full adapter interface is documented at the top of [src/sleep-engine.js](src
 | `src/sleep-clock.js` | Two-process model: sleep pressure and circadian rhythm, entrainment to the partner's schedule. |
 | `src/text-en.js`, `src/text-zh.js` | Text packs. Every line the engine says to the agent comes from here; swap the pack to change persona or language. |
 | `src/dream-prompt.js` | A separate model writes the dream. Builds the prompt, calls the model you pass in, checks the result. The engine never calls a model itself. |
+| `src/dream-live.js` | Live mode: sends the dream into the conversation one scene at a time and waits for the companion's reaction (`makeLiveDreamWriter`, plus a default text pack `makeLiveText`). Falls back to a normal dream if the companion doesn't answer. |
+| `src/deep.js` | Which dreams are remembered for a long time: depth score at waking, cue-based recall, strengthening and fading. |
 | `src/recall.js` | What's left of a dream on waking. The companion never gets a finished story with a title; it gets a few shards (an image, a line, a feeling) and retells the dream itself. Woken mid-dream, it gets only the first half. |
 
 ## Defaults worth knowing
 
 - **Intimate dreams are off** by default. Turn them on with `config.erotic: true`.
 - **Dreams where something happens to the partner are off** by default. They're meant to be a switch both sides agree on. Turn them on with `config.lossEveryDays: N` (at most once every N days). When on, they come with safety rules: no gore, only the feeling, and the wake-up line starts with "It was a dream; [partner] is fine."
-- **Keep dreams out of your memory system.** If the companion has long-term memory that summarizes or extracts facts from the conversation, a dream can be stored as something that really happened. Mark every dream injection (and the companion's reply to it) so your memory pipeline skips it: don't summarize it, don't extract facts from it, don't return it in recall. The dream text is still saved on its own for people to read.
+- **Keep dreams out of your memory system.** If the companion has long-term memory that summarizes or extracts facts from the conversation, a dream can be stored as something that really happened. Mark every dream injection (and the companion's reply to it; live mode prefixes each scene with `[dream]` for this) so your memory pipeline skips it: don't summarize it, don't extract facts from it, don't return it in recall. The dream text is still saved on its own for people to read.
 - The companion is never told to act out being human (getting up, washing their face); drowsiness shows only in how they talk.
 
 ## Status

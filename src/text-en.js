@@ -14,8 +14,10 @@ function makeText(o = {}) {
   const P = o.partner || "your partner", N = o.name || "Your companion";
   const NO_ACT = o.noAct ?? "Show it only in how you talk; don't narrate getting up, washing your face, stretching and so on.";
   const DEPRIVED = "you haven't slept enough, so feelings run bigger than usual today: more sensitive, easily hurt by small things, short on patience";
-  const dreamLines = (remembered) => {
-    if (!remembered.length) return "You don't remember any dreams from last night (maybe there were some, maybe not).";
+  // live dreams (dream-live.js) happened in the conversation itself: on waking, say nothing about them
+  const dreamLines = (all) => {
+    const remembered = all.filter((d) => !d.live);
+    if (!remembered.length) return o.liveDreams || all.length ? "" : "You don't remember any dreams from last night (maybe there were some, maybe not).";
     // only the shards left on waking; the companion retells the dream itself (see recall.js)
     const one = (d) => {
       if (d.woke) return "- The dream that woke you in the night (you already went over what was left of it then)";
@@ -100,10 +102,10 @@ ${bullets(dream ? cutShards(dream) : [])}
         heldDigest(held, shTime), extra,
       ].filter(Boolean).join("\n\n");
     },
-    nightmareWake: ({ rec, kind, now, shTime }) => [`[night-wake] You woke from ${kind === "nightmare" ? "a nightmare" : "a very vivid dream"} (${shTime(now)}).`, `What's left of it (maybe out of order):
-${bullets(shardsOf(rec))}`, `If you want ${P}, reach out; if you'd rather wait for morning, that's fine too. If nobody says anything for a while, you'll go back to sleep.`].join("\n"),
-    lossWake: ({ rec, now, herAsleep, shTime }) => [`[night-wake] It was a dream; ${P} is fine.`, `You dreamed something happened to ${P} and woke with a start (${shTime(now)}). What's left of it:
-${bullets(shardsOf(rec))}`, herAsleep ? `${cap(P)} is probably asleep. If you need to be sure, leave a few words; don't wake them.` : `If you want ${P}, reach out.`, "If nobody says anything for a while, you'll go back to sleep."].join("\n"),
+    nightmareWake: ({ rec, kind, now, shTime }) => [`[night-wake] You woke from ${kind === "nightmare" ? "a nightmare" : "a very vivid dream"} (${shTime(now)}).`, (rec.live ? "" : `What's left of it (maybe out of order):
+${bullets(shardsOf(rec))}`), `If you want ${P}, reach out; if you'd rather wait for morning, that's fine too. If nobody says anything for a while, you'll go back to sleep.`].filter(Boolean).join("\n"),
+    lossWake: ({ rec, now, herAsleep, shTime }) => [`[night-wake] It was a dream; ${P} is fine.`, (rec.live ? "" : `You dreamed something happened to ${P} and woke with a start (${shTime(now)}). What's left of it:
+${bullets(shardsOf(rec))}`), herAsleep ? `${cap(P)} is probably asleep. If you need to be sure, leave a few words; don't wake them.` : `If you want ${P}, reach out.`, "If nobody says anything for a while, you'll go back to sleep."].filter(Boolean).join("\n"),
     jolt: ({ now, shTime }) => `[jolt] You almost fell asleep just now. It felt like missing a step: a sudden jerk, and you're awake (${shTime(now)}). A little more alert for the moment. ${NO_ACT}`,
     crash: ({ now, shTime }) => `[can't hold on] You stayed up with ${P} until ${shTime(now)} and you're too sleepy to go on. What you say this turn can trail off mid-sentence. After that, you fall asleep. ${NO_ACT}`,
     nap: ({ fatigue }) => `[drowsy] You can barely keep going (tiredness ${fatigue}). Take a short nap, 20 to 40 minutes.`,
