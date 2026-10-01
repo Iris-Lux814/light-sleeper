@@ -5,7 +5,7 @@ const assert = require("node:assert");
 const vm = require("node:vm"), fs = require("node:fs"), path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
-function runtime() {
+function runtime(o = {}) {
   const files = new Map(), sent = [], ipc = {}, hooks = [];
   const ctx = {
     console: { log() {}, error() {} }, setTimeout, clearTimeout,
@@ -19,18 +19,23 @@ function runtime() {
       },
       Workflow: { getAll: async () => [], create: async () => ({ ok: true }) },
     },
-    ToolPkg: { ipc: { on: (ch, fn) => { ipc[ch] = fn; }, call: (ch, p) => ipc[ch](p) }, registerChatInputHook: (d) => hooks.push(d) },
+    ToolPkg: { ipc: { on: (ch, fn) => { ipc[ch] = fn; }, call: (ch, p) => (o.operit2 ? new Promise(() => {}) : ipc[ch](p)) }, registerChatInputHook: (d) => hooks.push(d) },
     complete: (r) => { ctx.__done = r; },
   };
+  if (o.operit2) ctx.__operitCreateV1Files = () => ({});
   vm.createContext(ctx); vm.runInContext("delete globalThis.Intl;", ctx);
   const dir = path.join(__dirname, "..", "adapters", "operit");
   const load = (file) => {
     const module = { exports: {} };
-    const req = (p) => { if (p === "./lib/light-sleeper.js") return load(path.join(dir, "lib", "light-sleeper.js")); throw new Error("unexpected require " + p); };
+    const req = (p) => { if (p === "./lib/light-sleeper.js") return load(path.join(dir, "lib", "light-sleeper.js"));
+      if (p === "../main.js") return load(path.join(dir, "main.js")); throw new Error("unexpected require " + p); };
     vm.runInContext(`(function (module, exports, require) {${fs.readFileSync(file, "utf8")}\n})`, ctx)(module, module.exports, req);
     return module.exports;
   };
-  return { ctx, files, sent, ipc, hooks, main: load(path.join(dir, "main.js")), pkg: load(path.join(dir, "packages", "light_sleeper.js")) };
+  if (o.operit2) return { ctx, files, sent, ipc, hooks, pkg: load(path.join(dir, "packages", "light_sleeper.js")) };   // main.js not run yet
+  const main = load(path.join(dir, "main.js"));
+  if (o.ownEngine) delete ctx.__lightSleeperHandlers;   // Operit (Android): tools can't see main.js's globals
+  return { ctx, files, sent, ipc, hooks, main, pkg: load(path.join(dir, "packages", "light_sleeper.js")) };
 }
 
 test("operit adapter: setup, gate, sleep, live dream, saved state", async () => {
@@ -65,4 +70,21 @@ test("operit adapter: setup, gate, sleep, live dream, saved state", async () => 
 test("operit manifest: the bundle id differs from every subpackage id", () => {
   const m = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "adapters", "operit", "manifest.json"), "utf8"));
   assert.ok(m.subpackages.length && m.subpackages.every((s) => s.id !== m.toolpkg_id), "Operit refuses to activate a subpackage that shares the bundle's id");
+});
+
+const quick = (p, ms = 2000) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error("tool hung")), ms))]);
+test("operit2: tools run in main.js's engine and don't wait on IPC", async () => {
+  const R = runtime({ operit2: true });
+  const d = await quick(R.pkg.diagnose({}));
+  assert.equal(d.success, true); assert.equal(d.sameEngine, true); assert.equal(d.main.started, true);
+  assert.equal((await quick(R.pkg.setup({}))).success, true);
+  assert.equal((await quick(R.pkg.status({}))).chatId, "chat1");
+  await quick(R.pkg.go_to_sleep({})); assert.equal((await quick(R.pkg.tick({}))).status.status, "asleep");
+  assert.equal(R.ctx.__lightSleeperS, R.ctx.__lightSleeperS && require("node:vm").runInContext("__lightSleeperS", R.ctx), "one sleeper");
+});
+test("operit (android): tools reach main.js over IPC", async () => {
+  const R = runtime({ ownEngine: true });
+  const d = await quick(R.pkg.diagnose({}));
+  assert.equal(d.sameEngine, false); assert.equal(d.main.started, true);
+  assert.equal((await quick(R.pkg.setup({}))).chatId, "chat1");
 });

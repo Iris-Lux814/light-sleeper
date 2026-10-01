@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "toolpkg_id": "light_sleeper_bundle",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "enabled_by_default": true,
   "api_version": "1.0.1",
   "author": ["Iris-Lux814"],

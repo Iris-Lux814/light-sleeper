@@ -21,9 +21,12 @@ const note = (what, e) => { const m = what + (e ? ": " + ((e && e.message) || e)
 const exists = (get) => { try { return typeof get() === "function"; } catch (e) { return false; } };
 const env = (k, d) => { try { const v = getEnv(k); return v == null || v === "" ? d : v; } catch (e) { return d; } };
 
-let S = null;   // the running sleeper and its helpers, built on first use
+// The running sleeper and its helpers, built on first use. Kept on globalThis so that if this file is evaluated again in
+// the same engine (Operit2 runs tools in the main script's engine), there is still only one sleeper.
+let S = null;
 function start() {
   if (S) return S;
+  if (globalThis.__lightSleeperS) { S = globalThis.__lightSleeperS; return S; }
   const L = require("./lib/light-sleeper.js");
   const LANG = /^zh/i.test(env("LIGHT_SLEEPER_LANG", "zh")) ? "zh" : "en";
   const PARTNER = env("LIGHT_SLEEPER_PARTNER", LANG === "zh" ? "她" : "my partner");
@@ -131,6 +134,7 @@ function start() {
   }
 
   S = { sleeper, ensure, flush, meta, tick, gate };
+  globalThis.__lightSleeperS = S;
   return S;
 }
 
@@ -151,12 +155,14 @@ const handlers = {
     };
     return { started: ok, hookRegistered, apis, problems };
   },
-  "light_sleeper.tick": async () => { const s = start(); await s.tick(); return s.sleeper.api.status(); },
+  // doesn't wait for the tick: a live dream can take several minutes, longer than a tool call may run
+  "light_sleeper.tick": async () => { const s = start(); await s.ensure(); s.tick(); return s.sleeper.api.status(); },
   "light_sleeper.status": async () => { const s = start(); await s.ensure(); return { chatId: s.meta("chatId") || null, status: s.sleeper.api.status() }; },
   "light_sleeper.bind": async (payload) => { const s = start(); await s.ensure(); s.meta("chatId", payload && payload.chatId); await s.flush(); return { chatId: s.meta("chatId") }; },
   "light_sleeper.sleep": async () => { const s = start(); await s.ensure(); s.sleeper.startSleep("goodnight"); await s.flush(); return s.sleeper.api.status(); },
   "light_sleeper.dreams": async (payload) => { const s = start(); await s.ensure(); return s.sleeper.api.dreams({ limit: Math.min(Number(payload && payload.limit) || 10, 50) }); },
 };
+if (!globalThis.__lightSleeperHandlers) globalThis.__lightSleeperHandlers = handlers;
 if (exists(() => ToolPkg.ipc.on)) {
   for (const ch of Object.keys(handlers)) {
     try { ToolPkg.ipc.on(ch, async (p) => { try { return await handlers[ch](p); } catch (e) { note(ch, e); return { error: String((e && e.message) || e), problems }; } }); }

@@ -2,7 +2,7 @@
 METADATA
 {
   "name": "light_sleeper",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "display_name": { "zh": "浅眠", "en": "light-sleeper" },
   "description": {
     "zh": "让这个聊天里的 AI 会困、会睡、会做梦。先在要用的聊天里运行 setup。",
@@ -28,7 +28,15 @@ METADATA
 // SPDX-License-Identifier: AGPL-3.0-only
 // Tools run in a sandbox context; the sleeper lives in the ToolPkg main context (main.js), reached through IPC.
 "use strict";
-const call = (ch, payload) => ToolPkg.ipc.call(ch, payload || {});
+// Operit2 runs these tools in the same engine as main.js, and an IPC call from here waits behind the tool that made it
+// until both time out. There the handlers are called directly; on Operit (Android) tools have their own engine, so IPC.
+const sameEngine = () => typeof __operitCreateV1Files === "function";   // only Operit2 defines it (its v1 compatibility layer)
+function local(ch) {
+  let h = globalThis.__lightSleeperHandlers;
+  if (!h && sameEngine()) h = require("../main.js").handlers;
+  return h && h[ch];
+}
+const call = (ch, payload) => { const f = local(ch); return f ? f(payload || {}) : ToolPkg.ipc.call(ch, payload || {}); };
 
 async function setup() {
   const chatId = getChatId();
@@ -49,8 +57,8 @@ async function setup() {
   return { success: true, chatId, workflow };
 }
 async function diagnose() {
-  const out = { ipc: typeof ToolPkg !== "undefined" && ToolPkg.ipc && typeof ToolPkg.ipc.call === "function", chatId: (() => { try { return getChatId() || null; } catch (e) { return "getChatId failed: " + e.message; } })() };
-  if (!out.ipc) return { success: false, ...out, message: "ToolPkg.ipc.call is missing here, so tools can't reach the package's main script." };
+  const out = { sameEngine: sameEngine(), ipc: typeof ToolPkg !== "undefined" && ToolPkg.ipc && typeof ToolPkg.ipc.call === "function", chatId: (() => { try { return getChatId() || null; } catch (e) { return "getChatId failed: " + e.message; } })() };
+  if (!out.ipc && !sameEngine()) return { success: false, ...out, message: "ToolPkg.ipc.call is missing here, so tools can't reach the package's main script." };
   try { out.main = await call("light_sleeper.diagnose"); } catch (e) { out.main = "ipc call failed: " + (e && e.message); }
   return { success: true, ...out };
 }
@@ -60,8 +68,10 @@ async function go_to_sleep() { const s = await call("light_sleeper.sleep"); retu
 async function dreams(params) { return { success: true, dreams: await call("light_sleeper.dreams", { limit: params && params.limit }) }; }
 
 async function wrap(fn, params) {
-  try { complete(await fn(params || {})); }
-  catch (e) { complete({ success: false, message: "light-sleeper: " + (e && e.message) }); }
+  let r;
+  try { r = await fn(params || {}); } catch (e) { r = { success: false, message: "light-sleeper: " + (e && e.message) }; }
+  complete(r);
+  return r;
 }
 exports.diagnose = (p) => wrap(diagnose, p);
 exports.setup = (p) => wrap(setup, p);
