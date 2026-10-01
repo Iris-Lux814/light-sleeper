@@ -24,7 +24,8 @@
     "docs",
     "DESIGN.md",
     "README.zh-CN.md",
-    "scripts"
+    "scripts",
+    "adapters"
   ],
   "keywords": [
     "ai-companion",
@@ -34,8 +35,9 @@
     "llm"
   ],
   "scripts": {
-    "test": "node test/sleep-rules.test.js && node test/engine.test.js && node test/text.test.js && node test/live.test.js && node test/portable.test.js",
-    "bundle": "node scripts/bundle.js"
+    "test": "node test/sleep-rules.test.js && node test/engine.test.js && node test/text.test.js && node test/live.test.js && node test/portable.test.js && node test/operit.test.js",
+    "bundle": "node scripts/bundle.js",
+    "build:operit": "node adapters/operit/build.js"
   },
   "engines": {
     "node": ">=18"

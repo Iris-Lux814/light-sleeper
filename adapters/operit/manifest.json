@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "toolpkg_id": "light_sleeper",
+  "version": "0.1.0",
+  "api_version": "1.0.1",
+  "author": ["Iris-Lux814"],
+  "main": "main.js",
+  "display_name": { "zh": "浅眠：会困、会睡、会做梦", "en": "light-sleeper: sleep and dreams" },
+  "description": {
+    "zh": "让聊天里的 AI 像人一样犯困、睡着、做梦。睡着时你的消息按睡得深浅决定能不能叫醒他，叫不醒的醒来一起看。",
+    "en": "Your AI companion gets drowsy, sleeps and dreams. While it sleeps, whether your message wakes it depends on how deeply it is sleeping; the rest is shown on waking."
+  },
+  "subpackages": [
+    {
+      "id": "light_sleeper",
+      "entry": "packages/light_sleeper.js",
+      "enabled_by_default": true,
+      "display_name": { "zh": "浅眠", "en": "light-sleeper" },
+      "description": { "zh": "绑定聊天、定时、查看状态和梦", "en": "Bind a chat, run the clock, see status and dreams" }
+    }
+  ]
+}

@@ -60,6 +60,18 @@ setInterval(() => sleeper.tick(), 60000);
 
 The full adapter interface is documented at the top of [src/sleep-engine.js](src/sleep-engine.js).
 
+## Connecting it
+
+| Where your companion lives | How | Live dreams |
+|---|---|---|
+| Telegram | `examples/telegram.js` (no dependencies) | yes |
+| Discord | `examples/discord.js` (needs `discord.js`) | yes |
+| SillyTavern, LobeChat, Open WebUI, any OpenAI-compatible frontend | `examples/openai-proxy.js`: point the frontend at the proxy | no (the frontend only talks when you send something; fragments on waking instead) |
+| Operit (Android; Operit2 preview on iOS) | `adapters/operit/`: a ToolPkg, see its README | yes |
+| Your own agent | `examples/minimal-en.js`, and the adapter interface at the top of `src/sleep-engine.js` | if it can be sent a message and answer |
+
+Any model works: the companion uses whatever model you already use, and dreams need a model that can return JSON. What the host must offer: a way to see each message from you before the companion does (the gate), a way to send the companion a message (waking up, dream scenes), and something that calls `tick()` regularly (every minute; every 15 minutes still works, just less precisely).
+
 ## Hosts without Node
 
 The engine itself needs no Node built-ins. Only `fileStore` touches the file system, and only when you use it.
