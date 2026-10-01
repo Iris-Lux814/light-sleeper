@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "toolpkg_id": "light_sleeper",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "api_version": "1.0.1",
   "author": ["Iris-Lux814"],
   "main": "main.js",
