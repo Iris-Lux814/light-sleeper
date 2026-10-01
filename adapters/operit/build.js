@@ -8,12 +8,17 @@ require("child_process").execFileSync(process.execPath, [path.join(ROOT, "script
 fs.mkdirSync(path.join(HERE, "lib"), { recursive: true });
 fs.copyFileSync(path.join(ROOT, "dist", "light-sleeper.js"), path.join(HERE, "lib", "light-sleeper.js"));
 
-const FILES = ["manifest.json", "main.js", "lib/light-sleeper.js", "packages/light_sleeper.js"];
+// --id other_name: the same package under another id (when an old copy can't be removed, e.g. a host bug)
+const idArg = process.argv.indexOf("--id"); const PKG_ID = idArg > 0 ? process.argv[idArg + 1] : "light_sleeper";
+if (!/^[a-z][a-z0-9_]*$/.test(PKG_ID)) throw new Error("--id: lowercase letters, digits and _ only");
+const SRC_FILES = ["manifest.json", "main.js", "lib/light-sleeper.js", "packages/light_sleeper.js"];
+const FILES = SRC_FILES.map((f) => f.replace("packages/light_sleeper.js", `packages/${PKG_ID}.js`));
+const readOut = (i) => { const b = fs.readFileSync(path.join(HERE, SRC_FILES[i])); return PKG_ID === "light_sleeper" || SRC_FILES[i].startsWith("lib/") ? b : Buffer.from(b.toString("utf8").split("light_sleeper").join(PKG_ID).replace(/"浅眠：/, `"浅眠（${PKG_ID}）：`).replace(/"light-sleeper: sleep/, `"light-sleeper (${PKG_ID}): sleep`), "utf8"); };
 const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
 const crc32 = (b) => { let c = 0xffffffff; for (const x of b) c = crcTable[(c ^ x) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
 const locals = [], centrals = []; let offset = 0;
-for (const name of FILES) {
-  const data = fs.readFileSync(path.join(HERE, name)); const deflated = zlib.deflateRawSync(data); const nameBuf = Buffer.from(name, "utf8");
+for (const [i, name] of FILES.entries()) {
+  const data = readOut(i); const deflated = zlib.deflateRawSync(data); const nameBuf = Buffer.from(name, "utf8");
   const crc = crc32(data);
   const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(0x0800, 6); lh.writeUInt16LE(8, 8);
   lh.writeUInt32LE(0, 10); lh.writeUInt32LE(crc, 14); lh.writeUInt32LE(deflated.length, 18); lh.writeUInt32LE(data.length, 22); lh.writeUInt16LE(nameBuf.length, 26); lh.writeUInt16LE(0, 28);
@@ -25,6 +30,6 @@ for (const name of FILES) {
 }
 const cd = Buffer.concat(centrals);
 const end = Buffer.alloc(22); end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(FILES.length, 8); end.writeUInt16LE(FILES.length, 10); end.writeUInt32LE(cd.length, 12); end.writeUInt32LE(offset, 16);
-const out = path.join(ROOT, "dist", "light_sleeper.toolpkg");
+const out = path.join(ROOT, "dist", `${PKG_ID}.toolpkg`);
 fs.writeFileSync(out, Buffer.concat([...locals, cd, end]));
 console.log(`${path.relative(process.cwd(), out)}: ${FILES.length} files, ${Math.round(fs.statSync(out).size / 1024)} KB`);
