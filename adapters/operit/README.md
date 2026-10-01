@@ -17,7 +17,7 @@ A ToolPkg that lets the AI in one Operit chat get drowsy, fall asleep and dream.
 
 ## Operit2 / iOS
 
-Not working yet. On Operit2 (tested on iOS) the package imports and activates, but every tool times out after 60 s, even `diagnose`. Use Operit on Android for now.
+Works from 0.1.3 (tested on iOS). Operit2 runs a package's tools in the same engine as its main script, so the tools call it directly there instead of over IPC. The workflow plugin (com.operit.workflow) must be enabled for setup to create the clock.
 
 ## How it works here
 
@@ -44,6 +44,6 @@ Not working yet. On Operit2 (tested on iOS) the package imports and activates, b
 4. 角色卡如果限制了能用哪些包，要把 `light_sleeper` 加进允许列表，不然工具会被拦。
 5. 在角色卡里告诉 AI：说完晚安可以调 `light_sleeper:go_to_sleep` 去睡。困了也会自己睡。
 
-iOS（Operit2）现在还不能用：能导入激活，但工具全部超时。先用安卓版 Operit。
+iOS（Operit2）从 0.1.3 起能用。要先启用工作流插件 com.operit.workflow，setup 才建得了定时。
 
 限制：时钟 15 分钟走一步，事情最多晚 15 分钟；梦里的回应会留在聊天里；卡住的话把 `LIGHT_SLEEPER_DREAMS` 改成 `model`。
