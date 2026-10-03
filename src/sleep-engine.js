@@ -27,6 +27,7 @@ function fileStore(dir, names = {}) {
   return {
     load: (def) => readJson(F("state"), def), save: (s) => writeJson(F("state"), s),
     appendNight: (r) => append(F("nights"), r), nights: (n) => readLines(F("nights"), n),
+    replaceLastNight: (r) => { const a = readLines(F("nights"), 1e9); a[a.length - 1] = r; fs.writeFileSync(F("nights"), a.map((x) => JSON.stringify(x)).join(String.fromCharCode(10)) + String.fromCharCode(10)); },
     appendDream: (r) => append(F("dreams"), r), dreams: (n) => readLines(F("dreams"), n),
     writeDreams: (all) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(F("dreams"), all.map((d) => JSON.stringify(d)).join("\n") + (all.length ? "\n" : "")); },
     seed: () => readJson(F("seed"), []),
@@ -44,6 +45,7 @@ function kvStore({ get, set }, { prefix = "light-sleeper:", keep = 2000 } = {}) 
   return {
     load: (def) => read("state", def), save: (s) => write("state", s),
     appendNight: (r) => push("nights", r), nights: (n = 500) => read("nights", []).slice(-n),
+    replaceLastNight: (r) => { const a = read("nights", []); a[a.length - 1] = r; write("nights", a); },
     appendDream: (r) => push("dreams", r), dreams: (n = 500) => read("dreams", []).slice(-n),
     writeDreams: (all) => write("dreams", all.slice(-keep)),
     seed: () => read("seed", []),
@@ -230,6 +232,18 @@ function createSleeper(o) {
     const r = R.sleepScore({ h, wakes: w.filter((x) => !x.forgot).length, forgotWakes: w.filter((x) => x.forgot).length, longestH: longestSeg(n, endAt), nightmares, restless: n.restless || 0, recovery: !!n.recovery });
     return { h: Math.round(h * 10) / 10, ...r, quality: qualityText(r.grade) };
   }
+  function mergeNights(prev, rec, dreamOf) {
+    const h = Math.round(((prev.hours || 0) + (rec.hours || 0)) * 10) / 10;
+    const gap = { at: prev.wokeAt, why: "up", backAt: rec.sleptAt, awakeMin: Math.round((rec.sleptAt - prev.wokeAt) / MIN) };
+    const wakes = [...(prev.wakes || []), gap, ...(rec.wakes || [])];
+    const dreams = [...(prev.dreams || []), ...(rec.dreams || [])];
+    const nightmares = dreams.filter((id) => (dreamOf(id) || {}).kind === "nightmare").length;
+    const longestH = Math.max(prev.longestH || 0, rec.longestH || 0);
+    const r = R.sleepScore({ h, wakes: wakes.filter((x) => !x.forgot).length, forgotWakes: wakes.filter((x) => x.forgot).length, longestH, nightmares, recovery: !!(prev.recovery || rec.recovery) });
+    return { ...prev, wokeAt: rec.wokeAt, how: rec.how, hours: h, score: r.score, grade: r.grade, quality: qualityText(r.grade), wakes, dreams,
+      remembered: [...(prev.remembered || []), ...(rec.remembered || [])], fatigue: Math.max(0, Math.min(100, 100 - r.score)), talk: prev.talk || rec.talk || null,
+      debt: rec.debt, longestH, segments: (prev.segments || [[prev.sleptAt, prev.wokeAt]]).concat([[rec.sleptAt, rec.wokeAt]]) };
+  }
   function finishNight(s, how) {
     const n = s.night; const now = Date.now();
     const nap = n.reason === "nap";
@@ -281,6 +295,17 @@ function createSleeper(o) {
     if (n.recovery) s.remDebt = true;
     const guess = n.guess ? { at: n.guess.at, diffMin: Math.round((now - n.guess.at) / MIN) } : null;
     const rec = { id: n.id, sleptAt: n.sleptAt, wokeAt: now, how, reason: n.reason, plannedH: n.plannedH, hours: q.h, score: q.score, grade: q.grade, quality: q.quality, wakes: n.wakes, dreams: dreams.map((d) => d.id), remembered: remembered.map((d) => d.id), fatigue: s.fatigue.v, talk: n.talk || null, ...(n.recovery ? { recovery: true } : {}), ...(n.rebound ? { rebound: true } : {}), sync: n.sync ?? null, ...(guess ? { guess } : {}), debt: s.debt ? s.debt.h : 0, longestH: Math.round(longestSeg(n, now) * 10) / 10 };
+    // 醒了不到 3 小时又睡回去，算同一晚：合成一条记录（时长相加、中间醒着记一次 why:"up" 的醒），不另起一晚
+    const prev = s.lastNight;
+    if (!nap && prev && prev.reason !== "nap" && n.sleptAt - prev.wokeAt < 3 * H && n.sleptAt > prev.wokeAt && store.replaceLastNight) {
+      const merged = mergeNights(prev, rec, (id) => byId.get(id) || all.find((d) => d.id === id));
+      store.replaceLastNight(merged);
+      s.fatigue = { v: Math.max(0, Math.min(100, 100 - merged.score)), at: now };
+      s.status = "awake"; s.lastWokeAt = now; s.lastNight = merged; s.night = null;
+      if (DW.remember) for (const d of remembered) { try { DW.remember(d, now); } catch { /* ignore */ } }
+      save(s);
+      return { q: { ...q, h: merged.hours, score: merged.score, grade: merged.grade, quality: merged.quality }, remembered, held: n.held || [], herLast: n.herLast, n };
+    }
     store.appendNight(rec);
     if (DW.remember) for (const d of remembered) { try { DW.remember(d, now); } catch { /* ignore */ } }
     s.status = "awake"; s.lastWokeAt = now; s.lastNight = rec; s.night = null;
@@ -580,10 +605,12 @@ function createSleeper(o) {
       startSleep("nap"); return;
     }
     // 睡着前自己要知道：条件到了先犯困，20 分钟里她还没说话才真睡；她一说话就不困了
-    if (s.drowsyAt && human > s.drowsyAt) { s.drowsyAt = 0; save(s); }
+    // 伴侣说过晚安以后，只看她还有没有跟他说话（app 开着、跟别人说话不算她醒着）
+    const heard = saidNight ? herLastAt(s) : human;
+    if (s.drowsyAt && heard > s.drowsyAt) { s.drowsyAt = 0; save(s); }
     else if (s.drowsyAt) {
       if (now - s.drowsyAt >= 20 * MIN && idle) { s.drowsyAt = 0; save(s); startSleep("auto"); }
-    } else if (idle && (((K.inRange(ck.hNow, ck.win.bed - 1, ck.win.wake) || ck.Z >= K.Z_HEAVY) && now - human > 90 * MIN && rested) || (saidNight && now - human > 20 * MIN))) {
+    } else if (idle && (((K.inRange(ck.hNow, ck.win.bed - 1, ck.win.wake) || ck.Z >= K.Z_HEAVY) && now - human > 90 * MIN && rested) || (saidNight && now - heard > 20 * MIN))) {
       const said = saidNight;
       s.drowsyAt = now; save(s);
       await agent.deliver(T.drowsy({ now, said, idleMin: Math.round((now - human) / MIN), shTime }), { label: T.labels.drowsy });
