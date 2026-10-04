@@ -449,7 +449,7 @@ function createSleeper(o) {
     const all = store.dreams(3000);
     const lossOk = cfg.lossEveryDays > 0 && !all.some((x) => x.sub === "loss" && now - x.at < cfg.lossEveryDays * 86400000);
     const w = phase === "early" ? { plain: 0.55, anxious: 0.3, odd: 0.1, sweet: 0.05 }
-      : { plain: 0.2, anxious: 0.22, odd: 0.14, sweet: 0.16, erotic: 0.08, nightmare: 0.14, loss: 0.06 };
+      : { plain: 0.24, anxious: 0.16, odd: 0.14, sweet: 0.22, erotic: 0.08, nightmare: 0.1, loss: 0.06 };   // negative share 0.42 -> 0.32; a hurt day (tone) still pushes anxious / nightmare up
     if (fat > 50) { w.anxious += 0.08; if (w.nightmare) w.nightmare += 0.05; }
     if (tone === "warm") { w.sweet += 0.12; if (w.erotic) w.erotic += 0.05; w.anxious = Math.max(0.05, w.anxious - 0.08); }
     if (tone === "hurt") { w.anxious += 0.1; if (w.nightmare) w.nightmare += 0.08; w.sweet = Math.max(0.02, w.sweet - 0.1); }

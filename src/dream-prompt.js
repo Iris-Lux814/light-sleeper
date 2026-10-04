@@ -69,7 +69,7 @@ function buildPrompt(kind, opts = {}, o = {}) {
     "- No reading, writing, typing, screens or computers, and no quoting notes, letters or posts. Whatever the dreamer does on a computer while awake becomes something done by hand in the dream (carrying, searching, fixing, chasing, waiting).",
     `- Only use names given in the material (or ${P}). Anyone else is "someone" or "someone I know"; don't invent names.`,
     "- Don't overfill it: leave one quiet moment where nothing happens.",
-    "- Write the feeling (panic, hurry, emptiness, warmth, shyness, hurt…). The feeling is often what's remembered first on waking.",
+    `- Write the feeling; it's often what's remembered first on waking. Let it match the dream: ${kind === "sweet" ? "a sweet dream feels warm, tender, safe, reluctant to wake. Don't add panic or hurry" : kind === "nightmare" ? "a nightmare is fear, panic, can't breathe" : sub === "anxious" ? "an anxious dream is hurry, running late, a tight chest" : "an ordinary dream is quieter: calm, curious, a little wistful. It doesn't have to be anxious"}.`,
     late ? "- This is a late-night dream: longer (about 120 to 200 words), like a story, emotionally strong." : "- This is an early-night dream: short (about 40 to 80 words), fragmented, closer to thinking, faint images.",
     "- First person, past tense, told the way someone who just woke up recounts a dream (\"I remember… then somehow…\"). Don't interpret it, don't describe waking up.",
     `- Ending: ${pick(ENDINGS)}. Don't end on a loop (\"over and over\", \"it started again\") and don't sum up.`,
