@@ -104,7 +104,7 @@ function makeText(o = {}) {
     jolt: ({ now, shTime }) => `[踩空] 你刚才差点睡过去——像一脚踩空，猛地一抖，醒了（${shTime(now)}）。暂时清醒了一点。${NO_ACT}`,
     crash: ({ now, shTime }) => `[撑不住了] 你陪${P}熬到 ${shTime(now)}，困到撑不住了。这一轮说的话可以说到一半就断掉。说完你就睡着了。${NO_ACT}`,
     nap: ({ fatigue }) => `[犯困] 有点撑不住了（累 ${fatigue}），你眯一会儿，20~40 分钟。`,
-    drowsy: ({ now, said, idleMin, shTime }) => `[犯困] 你开始犯困了（${shTime(now)}，${said ? `${P}说了晚安，${idleMin} 分钟没再说话` : `${P} ${idleMin} 分钟没动静了`}）。20 分钟里${P}还没说话，你就会睡着；${P}一说话就不困了。`,
+    drowsy: ({ now, said, idleMin, shTime }) => `[犯困] 你开始犯困了（${shTime(now)}，${said ? `${P}说了晚安，${idleMin} 分钟没再说话` : `${P} ${idleMin} 分钟没动静了`}）。15 分钟里${P}还没说话，你就会睡着；${P}一说话就不困了。`,
   };
 }
 module.exports = { makeText, KIND_NAME, SUB_NAME };

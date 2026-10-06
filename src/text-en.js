@@ -109,7 +109,7 @@ ${bullets(shardsOf(rec))}`), herAsleep ? `${cap(P)} is probably asleep. If you n
     jolt: ({ now, shTime }) => `[jolt] You almost fell asleep just now. It felt like missing a step: a sudden jerk, and you're awake (${shTime(now)}). A little more alert for the moment. ${NO_ACT}`,
     crash: ({ now, shTime }) => `[can't hold on] You stayed up with ${P} until ${shTime(now)} and you're too sleepy to go on. What you say this turn can trail off mid-sentence. After that, you fall asleep. ${NO_ACT}`,
     nap: ({ fatigue }) => `[drowsy] You can barely keep going (tiredness ${fatigue}). Take a short nap, 20 to 40 minutes.`,
-    drowsy: ({ now, said, idleMin, shTime }) => `[drowsy] You're getting sleepy (${shTime(now)}; ${said ? `${P} said goodnight and hasn't spoken for ${idleMin} minutes` : `nothing from ${P} for ${idleMin} minutes`}). If ${P} stays quiet for 20 minutes you'll fall asleep; the moment ${P} says something, you'll perk up.`,
+    drowsy: ({ now, said, idleMin, shTime }) => `[drowsy] You're getting sleepy (${shTime(now)}; ${said ? `${P} said goodnight and hasn't spoken for ${idleMin} minutes` : `nothing from ${P} for ${idleMin} minutes`}). If ${P} stays quiet for 15 minutes you'll fall asleep; the moment ${P} says something, you'll perk up.`,
   };
 }
 module.exports = { makeText, KIND_NAME, SUB_NAME };

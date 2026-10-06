@@ -11,6 +11,8 @@ const R = require("./sleep-rules.js");
 const { makeTz } = require("./tz.js");
 
 const MIN = 60000, H = 3600000;
+// 睡前的等：说完晚安对方 10 分钟没再说话就犯困，犯困 15 分钟对方还没说话就睡着
+const NIGHT_QUIET_MIN = 10, DROWSY_MIN = 15;
 const rid = (p) => `${p}${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -662,13 +664,13 @@ ${T.goodnightHint}` };
       await agent.deliver(T.nap({ fatigue: fatigueNow(s) }), { label: T.labels.drowsy });
       startSleep("nap"); return;
     }
-    // 睡着前自己要知道：条件到了先犯困，20 分钟里她还没说话才真睡；她一说话就不困了
+    // 睡着前自己要知道：条件到了先犯困，DROWSY_MIN 分钟里她还没说话才真睡；她一说话就不困了
     // 伴侣说过晚安以后，只看她还有没有跟他说话（app 开着、跟别人说话不算她醒着）
     const heard = saidNight ? herLastAt(s) : human;
     if (s.drowsyAt && heard > s.drowsyAt) { s.drowsyAt = 0; save(s); }
     else if (s.drowsyAt) {
-      if (now - s.drowsyAt >= 20 * MIN && idle) { s.drowsyAt = 0; save(s); startSleep("auto"); }
-    } else if (idle && (((K.inRange(ck.hNow, ck.win.bed - 1, ck.win.wake) || ck.Z >= K.Z_HEAVY) && now - human > 90 * MIN && rested) || (saidNight && now - heard > 20 * MIN))) {
+      if (now - s.drowsyAt >= DROWSY_MIN * MIN && idle) { s.drowsyAt = 0; save(s); startSleep("auto"); }
+    } else if (idle && (((K.inRange(ck.hNow, ck.win.bed - 1, ck.win.wake) || ck.Z >= K.Z_HEAVY) && now - human > 90 * MIN && rested) || (saidNight && now - heard > NIGHT_QUIET_MIN * MIN))) {
       const said = saidNight;
       s.drowsyAt = now; save(s);
       await agent.deliver(T.drowsy({ now, said, idleMin: Math.round((now - human) / MIN), shTime }), { label: T.labels.drowsy });
