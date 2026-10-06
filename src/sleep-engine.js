@@ -415,7 +415,13 @@ function createSleeper(o) {
     const label = String(opts.label || "");
     const c = classify(text, label) || { kind: "other" };
     const s = load();
-    if (s.status === "awake" && c.kind === "partner") { const r = vigilTag(s, c, text, opts); if (r) return r; }
+    if (s.status === "awake" && c.kind === "partner") {
+      const r = vigilTag(s, c, text, opts);
+      // partner said goodnight: let the agent choose to sleep right away (only if the text pack has goodnightHint; held nod messages untouched)
+      if (T.goodnightHint && partner.isGoodnight(c.body) && !(r && r.hold)) return { text: `${r && r.text ? r.text : text}
+${T.goodnightHint}` };
+      if (r) return r;
+    }
     if (s.status === "work-awake" && s.night) {
       const now = Date.now();
       if (c.kind === "work") { s.night.lastWorkAt = now; s.night.fallAt = null; save(s); return null; }
