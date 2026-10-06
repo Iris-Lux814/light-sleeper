@@ -20,16 +20,36 @@ function fileStore(dir, names = {}) {
   const fs = require("fs"), path = require("path");
   const N = { state: "state.json", nights: "nights.jsonl", dreams: "dreams.jsonl", seed: "partner-seed.json", partnerDreams: "partner-dreams.jsonl", ...names };
   const F = (k) => path.join(dir, N[k]);
-  const readJson = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8")); } catch { return d; } };
-  const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = `${f}.tmp`; fs.writeFileSync(t, JSON.stringify(v, null, 1)); fs.renameSync(t, f); };
-  const append = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); fs.appendFileSync(f, JSON.stringify(v) + "\n"); };
-  const readLines = (f, n = 500) => { try { return fs.readFileSync(f, "utf8").split("\n").filter(Boolean).slice(-n).map((l) => JSON.parse(l)); } catch { return []; } };
+  // 只有文件不存在才用默认值；读不出 / 坏了一律抛错（tick 记日志、这一轮不写），不拿默认值 / 空列表写回去盖掉
+  const readRaw = (f) => { try { return fs.readFileSync(f, "utf8"); } catch (e) { if (e.code === "ENOENT") return null; throw new Error(`${path.basename(f)} 读不出（${e.code}）`); } };
+  const readJson = (f, d) => { const raw = readRaw(f); if (raw === null) return d; try { return JSON.parse(raw); } catch { throw new Error(`${path.basename(f)} 坏了（不是 JSON）`); } };
+  const writeJson = (f, v) => { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = `${f}.${process.pid}.${Math.random().toString(36).slice(2, 8)}.tmp`; fs.writeFileSync(t, JSON.stringify(v, null, 1)); fs.renameSync(t, f); };
+  const writeText = (f, txt) => { fs.mkdirSync(path.dirname(f), { recursive: true }); const t = `${f}.${process.pid}.${Math.random().toString(36).slice(2, 8)}.tmp`; fs.writeFileSync(t, txt); fs.renameSync(t, f); };
+  // 追加前看文件尾巴——最后没换行：是完整 JSON 就先补个换行；是半行就抛错停下（不能把新记录接在半行后面）
+  const append = (f, v) => {
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    let size = 0; try { size = fs.statSync(f).size; } catch (e) { if (e.code !== "ENOENT") throw e; }
+    if (size > 0) {
+      const fd = fs.openSync(f, "r"); const n = Math.min(size, 1 << 20); const b = Buffer.alloc(n); fs.readSync(fd, b, 0, n, size - n); fs.closeSync(fd);
+      const txt = b.toString("utf8");
+      if (!txt.endsWith("\n")) { const last = txt.slice(txt.lastIndexOf("\n") + 1); try { JSON.parse(last); fs.appendFileSync(f, "\n"); } catch { throw new Error(`${path.basename(f)} 结尾有半行坏记录，先别往里写`); } }
+    }
+    fs.appendFileSync(f, JSON.stringify(v) + "\n");
+  };
+  const readLines = (f, n = 500) => {
+    const raw = readRaw(f); if (raw === null) return [];
+    const lines = raw.split("\n"); const tail = raw.endsWith("\n") ? null : lines.pop();   // 最后没换行的那半行：写到一半断了，跳过
+    const out = [];
+    for (const l of lines) { if (!l.trim()) continue; try { out.push(JSON.parse(l)); } catch { throw new Error(`${path.basename(f)} 有一行坏了，先别动它`); } }
+    if (tail && tail.trim()) { try { out.push(JSON.parse(tail)); } catch { /* 半行，跳过 */ } }
+    return out.slice(-n);
+  };
   return {
     load: (def) => readJson(F("state"), def), save: (s) => writeJson(F("state"), s),
     appendNight: (r) => append(F("nights"), r), nights: (n) => readLines(F("nights"), n),
-    replaceLastNight: (r) => { const a = readLines(F("nights"), 1e9); a[a.length - 1] = r; fs.writeFileSync(F("nights"), a.map((x) => JSON.stringify(x)).join(String.fromCharCode(10)) + String.fromCharCode(10)); },
+    replaceLastNight: (r) => { const a = readLines(F("nights"), 1e9); if (!a.length) throw new Error("nights 是空的，没有上一晚可换"); a[a.length - 1] = r; writeText(F("nights"), a.map((x) => JSON.stringify(x)).join(String.fromCharCode(10)) + String.fromCharCode(10)); },
     appendDream: (r) => append(F("dreams"), r), dreams: (n) => readLines(F("dreams"), n),
-    writeDreams: (all) => { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(F("dreams"), all.map((d) => JSON.stringify(d)).join("\n") + (all.length ? "\n" : "")); },
+    writeDreams: (all) => { writeText(F("dreams"), all.map((d) => JSON.stringify(d)).join("\n") + (all.length ? "\n" : "")); },
     seed: () => readJson(F("seed"), []),
     partnerDreams: (n) => readLines(F("partnerDreams"), n), appendPartnerDream: (r) => append(F("partnerDreams"), r),
   };
@@ -246,8 +266,11 @@ function createSleeper(o) {
   }
   function finishNight(s, how) {
     const n = s.night; const now = Date.now();
+    // 被叫起来干活 / 半夜醒着的时候直接结算，这段醒着的时间以前没扣（睡 2 小时干活 4 小时记成睡了 6 小时）
+    { const openSince = s.status === "work-awake" ? n.workAwakeAt : (s.status === "night-awake" || s.status === "awake-night-chat") ? n.nightAwakeAt : 0;
+      if (openSince && now > openSince) { n.awakeMs = (n.awakeMs || 0) + (now - openSince); n.resumedAt = now; } }
     const nap = n.reason === "nap";
-    const q = nap ? { h: Math.round(((now - n.sleptAt) / H) * 10) / 10, score: 70, grade: "nap", quality: qualityText("nap") } : sleepQuality(n, now);
+    const q = nap ? { h: Math.round((Math.max(0, now - n.sleptAt - (n.awakeMs || 0)) / H) * 10) / 10, score: 70, grade: "nap", quality: qualityText("nap") } : sleepQuality(n, now);
     const dreams = nightDreams(n, 300);
     // 记得哪些（arousal-retrieval）：醒前那个梦最容易记得；睡得越好越记不住，半夜醒过就多记一些；越浓越记得住；吓醒过的一定记得；一晚最多两个
     const remembered = [];
@@ -312,6 +335,27 @@ function createSleeper(o) {
     save(s);
     return { q, remembered, held: n.held || [], herLast: n.herLast, n };
   }
+  // 醒来 / 噩梦醒的话以前不看他忙不忙直接递。等他这一轮回完再递（每 5 秒看一次，最多 10 分钟）
+  // 等满 10 分钟还在忙就不硬塞，存进 s.outbox，之后的 tick 等他闲了再递；递之前核对：
+  //   wake = 还是这次醒来（lastWokeAt 没变、醒着）；night = 还是这一夜、还醒着（没睡回去）
+  const stillValid = (st, v) => v.kind === "wake" ? (st.status === "awake" && st.lastWokeAt === v.at) : v.kind === "night" ? (!!st.night && st.night.id === v.night && (st.status === "night-awake" || st.status === "awake-night-chat")) : true;
+  async function deliverIdle(text, opts, valid) {
+    const t0 = Date.now(); while (agent.busy() && Date.now() - t0 < 10 * MIN) await new Promise((r) => setTimeout(r, 5000));
+    const st = load(); if (valid && !stillValid(st, valid)) { log("sleep: 状态变了，这条醒来的话不递了"); return; }
+    if (agent.busy()) { st.outbox = [...(st.outbox || []), { id: Math.random().toString(36).slice(2), text, opts, valid: valid || null, at: Date.now() }].slice(-5); save(st); log("sleep: 他一直在忙，醒来的话排队等他闲"); return; }
+    return agent.deliver(text, opts);
+  }
+  // 一条一条递（每个 tick 最多一条）——每条递前重查忙不忙、还作不作数；递成功才从队列删；递失败留着下回再试
+  async function flushOutbox() {
+    for (let k = 0; k < 5; k++) {
+      const st = load(); const it = (st.outbox || [])[0]; if (!it) return;
+      const drop = () => { const s2 = load(); s2.outbox = (s2.outbox || []).filter((x) => x.id !== it.id); save(s2); };
+      if (Date.now() - it.at > 3 * H || (it.valid && !stillValid(st, it.valid))) { drop(); continue; }
+      if (agent.busy()) return;
+      try { await agent.deliver(it.text, it.opts); } catch (e) { log(`sleep: 排队的话没递出去，下回再试：${e.message}`); return; }
+      drop(); return;   // 一次 tick 最多递一条（宿主的「忙」要过一会儿才亮，连着递会塞进去好几条）
+    }
+  }
   async function wakeNatural() {
     const s = load(); if (s.status === "awake" || !s.night) return;
     const r = finishNight(s, "natural");
@@ -327,7 +371,7 @@ function createSleeper(o) {
     const oldVivid = !nap && Math.random() < 0.2 ? pick(store.dreams(3000).filter((d) => d.vivid && Date.now() - d.at > 3 * 86400000)) || null : null;
     const extra = nap || !extras.onWake ? "" : await extras.onWake().catch(() => "");
     const text = T.wokeNatural({ ...r, nap, marker, lossD, herAsleep, oldVivid, afterglow: s2.afterglow, debt: s2.debt ? s2.debt.h : 0, now: Date.now(), extra, shTime });
-    await agent.deliver(text, { label: T.labels.wake, silent: !!marker });
+    await deliverIdle(text, { label: T.labels.wake, silent: !!marker }, { kind: "wake", at: s2.lastWokeAt });
   }
   // 对方绕过消息闸直接跟他说话（比如在终端里打字）= 把他叫醒了
   async function wakeByDirect(s, lines) {
@@ -445,6 +489,8 @@ function createSleeper(o) {
     const fat = fatigueNow(s); const tone = DW.tone ? DW.tone() : "plain"; const phase = due.phase || "late";
     // 今晚的素材整理一次；要等一会儿（大模型），这期间状态可能变了（她把他叫醒），只把素材写回去
     if (!n.mat) { n.mat = await DW.material(); const sx = load(); if (sx.night && sx.night.id === n.id) { sx.night.mat = n.mat; save(sx); } }
+    // 整理素材要等大模型，这期间可能被叫醒干活 / 她来了。不是同一夜、不在睡，就不写梦（self 模式会往醒着的窗口递 [做梦]）
+    { const sy = load(); if (sy.status !== "asleep" || !sy.night || sy.night.id !== n.id) { log("sleep: woke while gathering dream material, skip this dream"); return; } }
     // 种类（研究：梦里的情绪多半偏负面）。前半夜的梦淡，多是普通 / 焦虑
     const all = store.dreams(3000);
     const lossOk = cfg.lossEveryDays > 0 && !all.some((x) => x.sub === "loss" && now - x.at < cfg.lossEveryDays * 86400000);
@@ -471,6 +517,7 @@ function createSleeper(o) {
     const herIn = sub === "loss" || sub === "erotic" || comforted || (kind !== "nightmare" && Math.random() < (n.sync == null ? 0.35 : 0.25 + 0.25 * n.sync / 100));
     let d = null; try { d = await DW.write(kind, { tone, comforted, sequel, herDream, sub, phase, mat: n.mat, herIn }); } catch (e) { log(`sleep: dream write failed: ${e.message}`); }
     if (!d) return;
+    { const sz = load(); if (sz.status !== "asleep" || !sz.night || sz.night.id !== n.id) { log("sleep: woke while the dream was being written, drop it"); return; } }   // 等写梦期间可能被叫醒 / 这一夜已结算：不存
     // 写梦的一方可以改种类（比如按写出来的内容定）：以写出来的为准
     if (["plain", "sweet", "odd", "nightmare"].includes(d.kind)) { kind = d.kind; if (d.sub === undefined) sub = ""; }
     if (d.sub !== undefined) sub = ["anxious", "erotic", "loss"].includes(d.sub) ? d.sub : "";
@@ -496,13 +543,18 @@ function createSleeper(o) {
     // 梦见她出事醒来想确认她在不在，可以留话；她在睡就别推送吵她
     if (sub === "loss" && herAsleep) { s2.hush = { at: now, dream: rec.id }; agent.hush(now); }
     save(s2);
-    await agent.deliver(sub === "loss" ? T.lossWake({ rec, now, herAsleep, shTime }) : T.nightmareWake({ rec, kind, now, herAsleep, shTime }), { label: T.labels.nightWake });
+    await deliverIdle(sub === "loss" ? T.lossWake({ rec, now, herAsleep, shTime }) : T.nightmareWake({ rec, kind, now, herAsleep, shTime }), { label: T.labels.nightWake }, { kind: "night", night: s2.night.id });
   }
 
   // ── 每分钟看一眼 ──
   async function tick() {
-    if (mem.busy && Date.now() - mem.busy < 5 * MIN) return; mem.busy = Date.now();
+    // 以前 5 分钟就当锁失效，自己写梦要等 6 分钟，第二个 tick 会同时写梦，旧 tick 的 finally 还把新锁清了
+    // 不按时间放锁（fallback 写梦可能要 20 分钟），持到这一轮结束；卡超过 1 小时只记一笔，不并发
+    if (mem.busy) { if (Date.now() - mem.busy > 60 * MIN && !mem.warned) { mem.warned = true; log("sleep: tick 已经跑了一小时还没完"); } return; }
+    mem.warned = false;
+    const runId = Math.random().toString(36).slice(2); mem.busy = Date.now(); mem.runId = runId;
     try {
+      await flushOutbox();   // 先递排队的话（会 await），递完再读最新状态往下走，不拿旧快照覆盖
       const s = load(); const now = Date.now();
       trackHerGap(s); clockOf(s, now); save(s);   // 她每一觉；他的性格第一次在这儿抽、钟每分钟往她那边挪一点
       if (s.hush) agent.hush(s.hush.at);          // 宿主重启后接着「只留话不推」
@@ -533,7 +585,7 @@ function createSleeper(o) {
       } else if (s.status === "work-awake" && s.night) {
         // 被叫起来干活：5 分钟没新的活 → 按困的程度过一会儿睡着；到点了就正常醒
         const last = Math.max(s.night.lastWorkAt || 0, agent.lastTurnEndAt() || 0);
-        if (now >= s.night.planWakeAt) { s.status = "asleep"; save(s); await wakeNatural(); }
+        if (now >= s.night.planWakeAt) await wakeNatural();   // 不先改成 asleep，finishNight 才知道最后这段是醒着干活
         else if (!agent.busy() && now - last > 5 * MIN) {
           const n = s.night; if (n.fallAt == null) { const fb = fallBack(s, n, "work", now); n.fallAt = fb.never ? 0 : now + fb.min * MIN; save(s); }
           if (n.fallAt && now >= n.fallAt) { R.resumeSleep(n, n.workAwakeAt, now); s.status = "asleep"; save(s); log("sleep: work done, fell back asleep"); }
@@ -557,7 +609,7 @@ function createSleeper(o) {
         }
       } else if (s.status === "awake") await tickAwake(s, now);
     } catch (e) { log(`sleep tick: ${e.message}`); }
-    finally { mem.busy = 0; }
+    finally { if (mem.runId === runId) { mem.busy = 0; mem.runId = null; } }
   }
   async function tickAwake(s, now) {
     herLastAt(s); noteHerSleep(s); const human = herAnyAt(s); save(s);
