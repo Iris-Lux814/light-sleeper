@@ -61,7 +61,12 @@ test("operit adapter: setup, gate, sleep, live dream, saved state", async () => 
   const R2 = runtime(); R2.files.set("/plugins/light_sleeper/data.json", JSON.stringify(data));   // fresh process: state comes from the file
   R2.main.registerToolPkg();
   await R2.pkg.tick({});
-  const dreams = await R2.ipc["light_sleeper.dreams"]({});
+  // the tick tool returns without waiting for the tick (a live dream can outlast a tool call), so wait for the dream to land
+  let dreams = [];
+  for (const until = Date.now() + 5000; Date.now() < until; await new Promise((r) => setTimeout(r, 20))) {
+    dreams = await R2.ipc["light_sleeper.dreams"]({});
+    if (dreams.length && dreams[0].live) break;
+  }
   assert.ok(dreams.length >= 1 && dreams[0].live, "a live dream was dreamt");
   assert.ok(R2.sent.length >= 1 && R2.sent.every((s) => /^\[dream\]/.test(s.message) && s.chatId === "chat1" && s.opts.hide_user_message));
   assert.ok(JSON.parse(JSON.parse(R2.files.get("/plugins/light_sleeper/data.json")).dreams).length >= 1, "saved to the file");
