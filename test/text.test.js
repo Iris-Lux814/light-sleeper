@@ -52,5 +52,18 @@ assert.ok(/don't end the same way/.test(buildPrompt("plain", {}, { recentEndings
   const write = makeDreamWriter({ partner: "Sam", llm: async () => (++calls === 1 ? { text: "Sam died in the dream." } : { title: "Station", text: "I waited at a station with no trains." }) });
   const w = await write("plain", { phase: "late", mat });
   assert.equal(calls, 2); assert.equal(w.title, "Station");
+  // dream shape sampled from human dream norms
+  const { dreamSpec } = require("../src/dream-prompt.js");
+  const many = (kind, o, n = 3000) => Array.from({ length: n }, () => dreamSpec(kind, o, { partner: "Sam" }).join("\n"));
+  const rate = (arr, re) => arr.filter((x) => re.test(x)).length / arr.length;
+  const lateOdd = rate(many("plain", { phase: "late" }), /Odd details \(/), earlyOdd = rate(many("plain", { phase: "early" }), /Odd details \(/);
+  assert.ok(lateOdd > 0.45 && lateOdd < 0.65 && earlyOdd < lateOdd, `odd rates ${earlyOdd} ${lateOdd}`);
+  assert.equal(rate(many("odd", { phase: "early" }), /Odd details \(/), 1);
+  assert.equal(rate(many("sweet", { phase: "late", herIn: true }), /unlucky|it fails/), 0);
+  assert.equal(rate(many("sweet", { phase: "late", sub: "erotic" }), /[Aa]lso in the dream: /), 0);
+  assert.ok(many("plain", { phase: "late", sequel: { title: "x" } }, 200).every((x) => /Setting: back in the place of the original dream\./.test(x)));
+  const fly = many("plain", { phase: "early" }, 8000).filter((x) => /common kinds of dream: flying/.test(x));
+  assert.ok(fly.length && fly.every((x) => /can fly/.test(x) && !/Nothing odd/.test(x)), "flying counts as the odd detail");
+  assert.ok(/The shape of this dream/.test(buildPrompt("plain", { phase: "late", mat }, { partner: "Sam" }).user));
   console.log("text + dream-prompt ok");
 })().catch((e) => { console.error(e); process.exit(1); });

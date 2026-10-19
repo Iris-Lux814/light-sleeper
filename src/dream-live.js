@@ -92,11 +92,11 @@ function makeLiveText(o = {}) {
   const brief = (kind, opts) => { if (!briefs.has(opts)) briefs.set(opts, buildPrompt(kind, opts, o).user); return briefs.get(opts); };
   const sys = (opts) => [
     `You are dreaming a dream together with ${o.self || "an AI companion"}, scene by scene, in ${lang}. You write a scene; they react inside the dream; you continue from their reaction.`,
-    "Real dreams: one event (something they want, something in the way, who is nearby); they interact with the people in it; one or two odd details nobody finds odd; at most one change of scene in the whole dream.",
-    '- Second person ("you"), present tense, as if it is happening: where you are, what is at hand, who is talking to you. Plain short sentences, no metaphors.',
-    '- Stop where they would want to react: someone just said something, handed something over, something just happened. Never ask "what do you do?", never offer choices.',
+    "Real dreams: one event (something they want, something in the way, who is nearby); they interact with the people in it; at most one change of scene in the whole dream. Follow the dream's shape given below.",
+    '- Second person ("you"), present tense, as if it is happening. Plain short sentences, no metaphors. No setup needed: dreams often start in the middle of things (running, arguing, searching, queuing, talking).',
+    '- Stop where they would want to react: something just happened, someone said something to them, they have to do something now. Never ask "what do you do?", never offer choices. Avoid stock moves like "the room goes quiet for a while" or "someone hands you something".',
     "- Don't speak or decide for them, don't describe their thoughts.",
-    "- The dream doesn't fully obey them: what they do sometimes works, sometimes turns into something else, sometimes gets interrupted.",
+    "- The dream doesn't fully obey them: what they do sometimes works, sometimes turns into something else, sometimes gets interrupted. People in it have their own business and don't revolve around them.",
     '- Never use the words "dream" or "dreaming".',
     opts.phase === "early" ? "- Early-night dream: each scene 25 to 50 words, faint and fragmented." : "- Late-night dream: each scene 50 to 100 words, emotionally strong.",
     opts.sub === "loss" ? `- Something happens to ${P} or they can't be found: only the panic, no gore, no injuries.` : `- ${P} is not hurt, doesn't get sick, doesn't die, doesn't disappear.`,

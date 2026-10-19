@@ -5,7 +5,7 @@
 ## 1. 大多数梦其实挺「正常」
 - Snyder 分析实验室里收集的 REM 梦报告，典型的一个是：清楚、连贯、有细节的现实情境，做梦的人跟别人一起做很平常的事，而且常常在说话。
 - 60%~80% 的梦连贯度评为「高」，评为「低」的不到 5%。荒诞是有的，但一般一个梦里就一两处。
-- → 设计：一个梦讲一件事，怪的地方只留一两处，而且梦里的他不觉得怪。
+- → 设计：一个梦讲一件事，怪的地方最多一两处，而且梦里的他不觉得怪（10/19 起有没有怪、怪在哪按第 8 节的比例抽）。
 - 来源：[Domhoff：梦里的怪异](https://dreams.ucsc.edu/Library/domhoff_2007b.html)，[Domhoff：梦的内容](https://dreams.ucsc.edu/Library/domhoff_2005a.html)
 
 ## 2. 连续性假说：梦接着白天，但只取碎片
@@ -43,6 +43,22 @@
 - 梦话多出现在深睡，不一定对应正在做的梦。
 - → 设计：梦话大多是嘟囔和「不……」，跟做不做梦分开。
 - 来源：[梦话研究报道](https://medicalxpress.com/news/2018-01-reveals-talkers.html)，[Sleep-talking](https://en.wikipedia.org/wiki/Sleep-talking)
+
+## 8. 按真人做梦的比例抽样（2026-10-19）
+用久了发现：每次觉得梦哪里不对就往提示里加一条「不要 X」，规矩越叠越多，梦反而收敛成同一副骨架（同一种开头、同一种收尾）。所以换成先按人类梦内容研究的比例给每个梦抽一个「样子」，模型照着写（`dreamSpec`）。用到的数字：
+- 人物：梦里的人类人物熟人约 45%（男）/ 58%（女），其余是不熟的；动物约占全部人物 6% / 4%。（Hall & Van de Castle 常模）
+- 场景：熟悉场景远多于不熟悉的；明说是幻想、不现实的场景不到 1%，「异国、罕见」约 5%。（HVdC；Snyder 1970，经 Domhoff 转引）
+- 互动（按梦算，可以同时有）：至少一次攻击约 47% / 44%（多是口角、拒绝、被说），友好约 38% / 42%，性内容约 12% / 4%。（HVdC）
+- 运气和结果：坏运约 36% / 33%，好运约 6%；成功、失败各一成上下，其余没有结果。（HVdC）
+- 情绪（只算明说出来的）：忧惧最多（约 35%），困惑约 20%，快乐约 20%，愤怒约 15%，悲伤约 10%；很多梦没有明说的情绪。（HVdC）
+- 奇异：宽口径约 40%~60% 的梦有奇怪之处；奇异元素里「想法」和「说话」不合理最多，自我最少。（Domhoff 2007 综述；Revonsuo & Salmivalli 1995，经 Nielsen 2010 转引）
+- 典型梦（终生至少做过一次）：被追 81.5%、坠落 73.8%、学校考试 67.1%、迟到 59.5%、反复尝试做成一件事 53.5%、飞 48.3%……；单个梦里很少见（飞约 0.5%）。（Nielsen 等 2003；Domhoff）
+- 白天进梦：情绪重的事更容易进；整段事件重演只有约 1%~2%，常见的是人物、目标、心情原样，情节和地点重组。（Malinowski & Horton 2014；Fosse 等 2003；Vallat 等 2017）
+- 说话：约 58% / 65% 的梦至少有一次说话，话题多是普通的事。（HVdC；Kilroe 2016）
+- 前后半夜：前半夜的梦跟白天更连续；后半夜情绪更重、联想更远、新旧事混在一起。（Malinowski & Horton 2021）
+- 噩梦：被攻击更多；没吓醒的「坏梦」里人际冲突更多。（Robert & Zadra 2014）
+- → 设计：`dreamSpec` 每个梦抽地方（熟悉 / 普通现实地方）、人物（熟人 / 陌生人角色 / 动物）、冲突和友好、倒霉 / 走运、结果（成 / 没成 / 悬着）、情绪、0~2 处怪（想法、说话为主）、偶尔一个典型梦、有没有人说话、前后半夜的差别；心事以「同样的人、目标、心情，换了场景」出现，少数几乎原样。美梦、亲密的梦把冲突和倒霉压低。这些是常模（美国大学生为主），只当边际约束，不当精确参数。
+- 来源：[HVdC 常模](https://dreams.ucsc.edu/Norms/index.html)，[Domhoff 2007](https://dreams.ucsc.edu/Library/domhoff_2007b.html)，[Nielsen 2010](https://dreamscience.ca/en/documents/publications/_2010_Nielsen%20Chapter_PPSM5_51_595-603_2010_reality%20simulation.pdf)，[Nielsen 等 2003 典型梦](https://dreamscience.ca/en/documents/publications/_2003_Nielsen_Reprint_D_13_211-235_TDQ.pdf)，[Fosse 等 2003](https://pubmed.ncbi.nlm.nih.gov/12590838/)，[Vallat 等 2017](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0185262)，[Malinowski & Horton 2021](https://pubmed.ncbi.nlm.nih.gov/33360822/)，[Robert & Zadra 2014](https://pmc.ncbi.nlm.nih.gov/articles/PMC3900621/)，[Kilroe 2016](https://vault.cca.edu/items/f2bb234f-b8f1-40ed-a05e-3163c30cb064/2/Reflections%20on%20the%20Study%20of%20Dream%20Speech_published%20article_June%202016.pdf)
 
 ## 作息同频（2026-09-30）
 
